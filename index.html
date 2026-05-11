@@ -504,6 +504,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
     <button class="tab-btn" id="stab-specs" onclick="showSettingsTab('specs',this)" style="color:#333;border-color:#ccc">📐 Характеристики</button>
     <button class="tab-btn" id="stab-estimate" onclick="showSettingsTab('estimate',this)" style="color:#333;border-color:#ccc">🧮 Смета</button>
     <button class="tab-btn" id="stab-project" onclick="showSettingsTab('project',this)" style="color:#333;border-color:#ccc">🏠 Проект</button>
+    <button class="tab-btn" id="stab-users" onclick="showSettingsTab('users',this)" style="color:#333;border-color:#ccc;display:none">👥 Пользователи</button>
+    <button class="btn-new-proj" id="settingsNewProjectBtn" type="button" onclick="newProject()" style="display:block;margin-left:auto">+ Новый проект</button>
   </div>
 
   <!-- PHOTOS TAB -->
@@ -620,6 +622,96 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
       </div>
     </div>
   </div>
+</div>
+</div>
+
+<!-- USERS TAB -->
+<div id="stab-users-content" style="display:none">
+  <div class="scard full">
+    <div class="scard-head">Управление пользователями и доступом</div>
+    <div class="scard-body" style="max-height:600px;overflow-y:auto">
+      <!-- Users List -->
+      <div style="margin-bottom:20px">
+        <div style="font-weight:600;color:#2d3a2e;margin-bottom:12px;font-size:12px">ПОЛЬЗОВАТЕЛИ СИСТЕМЫ</div>
+        <div id="usersList" style="border:1px solid #e0e0e0;border-radius:3px;overflow:hidden">
+          <div style="padding:12px;color:#999;text-align:center">Загрузка пользователей...</div>
+        </div>
+      </div>
+
+      <!-- Create User Form (for super_admin and admin) -->
+      <div id="firstSetupSection" style="display:none;padding-top:20px;border-top:1px solid #e0e0e0">
+        <div style="font-weight:600;color:#2d3a2e;margin-bottom:12px;font-size:12px">ПЕРВЫЙ SUPER_ADMIN</div>
+        <div style="margin-bottom:14px;color:#555;font-size:12px">
+          Если в системе ещё нет супер-администратора, создайте его здесь. После этого вы сможете добавлять новых админов и менеджеров.
+        </div>
+        <form id="firstSetupForm" onsubmit="handleCreateSuperAdmin(event)" style="display:grid;gap:10px;max-width:400px">
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Имя*</label>
+            <input type="text" id="setupUserName" required placeholder="ФИО супер-админа" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Логин*</label>
+            <input type="text" id="setupUserLogin" required placeholder="Уникальный логин" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Email*</label>
+            <input type="email" id="setupUserEmail" required placeholder="email@example.com" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Пароль*</label>
+            <input type="password" id="setupUserPassword" required placeholder="Минимум 6 символов" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <button type="submit" class="btn-action primary" style="width:100%;margin-top:4px">✓ Создать супер-админа</button>
+        </form>
+      </div>
+
+      <div id="loginRequiredSection" style="display:none;padding:12px;background:#fff3cd;border:1px solid #ffeeba;border-radius:3px;color:#856404;margin-top:12px">
+        🔒 Для управления пользователями нужен вход в систему. Если супер-администратор уже создан, пожалуйста, войдите через API или добавьте вход в интерфейс.
+      </div>
+
+      <div id="createUserSection" style="display:none;padding-top:20px;border-top:1px solid #e0e0e0">
+        <div style="font-weight:600;color:#2d3a2e;margin-bottom:12px;font-size:12px">СОЗДАТЬ НОВОГО ПОЛЬЗОВАТЕЛЯ</div>
+        <form id="createUserForm" onsubmit="handleCreateUser(event)" style="display:grid;gap:10px;max-width:400px">
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Имя*</label>
+            <input type="text" id="newUserName" required placeholder="ФИО пользователя" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Логин*</label>
+            <input type="text" id="newUserLogin" required placeholder="Уникальный логин" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Email</label>
+            <input type="email" id="newUserEmail" placeholder="email@example.com" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Пароль*</label>
+            <input type="password" id="newUserPassword" required placeholder="Минимум 6 символов" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Роль*</label>
+            <select id="newUserRole" required onchange="updateRoleFields()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+              <option value="">-- Выберите роль --</option>
+              <option value="admin">Администратор (Admin)</option>
+              <option value="manager">Менеджер (Manager)</option>
+            </select>
+          </div>
+          <div id="adminSelectDiv" style="display:none">
+            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Администратор (для менеджера)</label>
+            <select id="newUserAdminId" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+              <option value="">-- Выберите администратора --</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-action primary" style="width:100%;margin-top:4px">✓ Создать пользователя</button>
+        </form>
+      </div>
+
+      <div id="accessDenied" style="display:none;padding:12px;background:#fff3cd;border:1px solid #ffeeba;border-radius:3px;color:#856404;margin-top:12px">
+        🔒 Только супер-администратор может управлять пользователями.
+      </div>
+    </div>
+  </div>
+</div>
 </div>
 </div>
 
@@ -927,13 +1019,6 @@ function renderProjectButtons() {
     btn.innerHTML = `<span onclick="switchProject(${i})">${p.name}</span>`;
     strip.appendChild(btn);
   });
-  // Кнопка «+ Новый проект» всегда последней — справа от всех существующих проектов
-  const newBtn = document.createElement('button');
-  newBtn.className = 'btn-new-proj';
-  newBtn.type = 'button';
-  newBtn.textContent = '+ Новый проект';
-  newBtn.onclick = newProject;
-  strip.appendChild(newBtn);
 }
 
 function switchProject(idx) {
@@ -1491,21 +1576,26 @@ function updateSumNote() {
 let activeSettingsTab = 'photos';
 function showSettingsTab(tab, btn) {
   activeSettingsTab = tab;
-  ['photos','specs','estimate','project'].forEach(t => {
-    document.getElementById(`stab-${t}-content`).style.display = t===tab?'block':'none';
+  ['photos','specs','estimate','project','users'].forEach(t => {
+    const content = document.getElementById(`stab-${t}-content`);
+    if (content) content.style.display = t===tab?'block':'none';
     const b = document.getElementById(`stab-${t}`);
-    if(b) b.classList.toggle('active', t===tab);
+    if (b) b.classList.toggle('active', t===tab);
   });
-  if (tab==='project') renderProjectForm();
-  if (tab==='estimate') renderConfigEditor();
+
+  if (tab === 'project') renderProjectForm();
+  if (tab === 'estimate') renderConfigEditor();
+  if (tab === 'users') loadUsers();
 }
 
 function renderSettings() {
   renderSliderGrid();
   renderPlanThumb();
   renderSpecsEditor();
+  showUsersTab();
   if (activeSettingsTab === 'project') renderProjectForm();
   if (activeSettingsTab === 'estimate') renderConfigEditor();
+  if (activeSettingsTab === 'users') loadUsers();
   updateTitleBars();
 }
 
@@ -2616,6 +2706,280 @@ function updateTitleBars() {
   if(tc) tc.textContent = p.code ? '(' + p.code + ')' : '';
   if(tcl) tcl.textContent = p.client ? '👤 ' + p.client : '';
   if(st) st.textContent = '✏ ' + (p.name || 'Проект');
+}
+
+
+// ========================================
+// USER MANAGEMENT (integration with backend API)
+// ========================================
+var currentUser = null;
+var allUsers = [];
+
+function getCurrentUserFromAPI() {
+  // Получить текущего пользователя из токена или статуса
+  const token = localStorage.getItem('jwt_token');
+  if (!token) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1]));
+      return payload;
+    }
+  } catch (e) {
+    console.error('Failed to parse token:', e);
+  }
+  return null;
+}
+
+function canManageUsers() {
+  const user = getCurrentUserFromAPI();
+  return user && user.role === 'super_admin';
+}
+
+async function loadSystemStatus() {
+  try {
+    const response = await fetch('/api/system/status');
+    if (!response.ok) return { setupCompleted: false, hasSuperAdmin: true };
+    return await response.json();
+  } catch (error) {
+    console.error('Error loading system status:', error);
+    return { setupCompleted: false, hasSuperAdmin: true };
+  }
+}
+
+async function showUsersTab() {
+  const btn = document.getElementById('stab-users');
+  if (!btn) return;
+  const status = await loadSystemStatus();
+  btn.style.display = (canManageUsers() || !status.hasSuperAdmin) ? 'block' : 'none';
+}
+
+async function loadUsers() {
+  const usersList = document.getElementById('usersList');
+  const firstSetupSection = document.getElementById('firstSetupSection');
+  const loginRequiredSection = document.getElementById('loginRequiredSection');
+  const createUserSection = document.getElementById('createUserSection');
+  const accessDenied = document.getElementById('accessDenied');
+
+  if (usersList) usersList.innerHTML = '';
+  if (firstSetupSection) firstSetupSection.style.display = 'none';
+  if (loginRequiredSection) loginRequiredSection.style.display = 'none';
+  if (createUserSection) createUserSection.style.display = 'none';
+  if (accessDenied) accessDenied.style.display = 'none';
+
+  const token = localStorage.getItem('jwt_token');
+  const status = await loadSystemStatus();
+
+  if (!token) {
+    if (!status.hasSuperAdmin) {
+      if (firstSetupSection) firstSetupSection.style.display = 'block';
+      usersList.innerHTML = '<div style="padding:12px;color:#555;text-align:center">Создайте первого супер-администратора.</div>';
+    } else {
+      if (loginRequiredSection) loginRequiredSection.style.display = 'block';
+      usersList.innerHTML = '<div style="padding:12px;color:#555;text-align:center">Требуется вход для управления пользователями.</div>';
+    }
+    return;
+  }
+
+  if (!canManageUsers()) {
+    if (accessDenied) accessDenied.style.display = 'block';
+    usersList.innerHTML = '<div style="padding:12px;color:#555;text-align:center">У вас нет прав для управления пользователями.</div>';
+    return;
+  }
+
+  if (createUserSection) createUserSection.style.display = 'block';
+
+  try {
+    const response = await fetch('/api/users', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      usersList.innerHTML = '<div style="padding:12px;color:#c00">Ошибка загрузки пользователей</div>';
+      return;
+    }
+
+    const data = await response.json();
+    allUsers = data.users || [];
+    const currentUserData = getCurrentUserFromAPI();
+
+    if (allUsers.length === 0) {
+      usersList.innerHTML = '<div style="padding:12px;color:#999;text-align:center">Нет пользователей</div>';
+    } else {
+      usersList.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 2fr 2fr 100px 80px;gap:1px;background:#e0e0e0">
+          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ИМЯ</div>
+          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ЛОГИН</div>
+          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">РОЛЬ</div>
+          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">СТАТУС</div>
+          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ДЕЙСТВИЕ</div>
+          ${allUsers.map((u, i) => `
+            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${u.name || '—'}</div>
+            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-family:monospace;font-size:11px">${u.login}</div>
+            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">
+              <span style="display:inline-block;padding:2px 6px;border-radius:2px;font-size:10px;font-weight:600;${u.role === 'super_admin' ? 'background:#f0ad4e;color:#fff' : u.role === 'admin' ? 'background:#5bc0de;color:#fff' : 'background:#d9edf7;color:#31708f'}">
+                ${u.role === 'super_admin' ? '⭐ Super Admin' : u.role === 'admin' ? '👤 Admin' : '📝 Manager'}
+              </span>
+            </div>
+            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-size:11px;color:#666">${u.status === 'active' ? '✅ Активен' : '❌ Неактивен'}</div>
+            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${u.id !== currentUserData?.userId ? `<button class="btn-action" style="padding:2px 6px;font-size:10px;color:#c00;border-color:#fcc" onclick="deleteUser('${u.id}')">Удалить</button>` : '—'}</div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    const adminSelect = document.getElementById('newUserAdminId');
+    if (adminSelect) {
+      const admins = allUsers.filter(u => u.role === 'admin');
+      adminSelect.innerHTML = '<option value="">-- Выберите администратора --</option>' + admins.map(a => `<option value="${a.id}">${a.name} (${a.login})</option>`).join('');
+    }
+  } catch (error) {
+    console.error('Error loading users:', error);
+    usersList.innerHTML = '<div style="padding:12px;color:#c00">Ошибка: ' + error.message + '</div>';
+  }
+}
+
+async function handleCreateSuperAdmin(event) {
+  event.preventDefault();
+  const name = document.getElementById('setupUserName').value.trim();
+  const login = document.getElementById('setupUserLogin').value.trim();
+  const email = document.getElementById('setupUserEmail').value.trim();
+  const password = document.getElementById('setupUserPassword').value;
+
+  if (!name || !login || !email || !password) {
+    alert('Заполните все поля для создания супер-админа');
+    return;
+  }
+  if (password.length < 6) {
+    alert('Пароль должен быть минимум 6 символов');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/system/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, login, email, password })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      alert('Ошибка: ' + (data.error || 'Не удалось создать супер-админа'));
+      return;
+    }
+
+    localStorage.setItem('jwt_token', data.token);
+    alert('Супер-админ создан. Вы автоматически вошли в систему.');
+    await showUsersTab();
+    await loadUsers();
+  } catch (error) {
+    console.error('Error creating super admin:', error);
+    alert('Ошибка: ' + error.message);
+  }
+}
+
+function updateRoleFields() {
+  const role = document.getElementById('newUserRole').value;
+  const adminSelectDiv = document.getElementById('adminSelectDiv');
+  if (adminSelectDiv) {
+    adminSelectDiv.style.display = role === 'manager' ? 'block' : 'none';
+  }
+}
+
+async function handleCreateUser(event) {
+  event.preventDefault();
+  
+  const name = document.getElementById('newUserName').value.trim();
+  const login = document.getElementById('newUserLogin').value.trim();
+  const email = document.getElementById('newUserEmail').value.trim();
+  const password = document.getElementById('newUserPassword').value;
+  const role = document.getElementById('newUserRole').value;
+  const adminId = role === 'manager' ? document.getElementById('newUserAdminId').value : undefined;
+
+  if (!name || !login || !password || !role) {
+    alert('Заполните все обязательные поля (отмечены *)');
+    return;
+  }
+
+  if (password.length < 6) {
+    alert('Пароль должен быть минимум 6 символов');
+    return;
+  }
+
+  if (role === 'manager' && !adminId) {
+    alert('Для менеджера необходимо выбрать администратора');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('jwt_token');
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        login,
+        email: email || undefined,
+        password,
+        role,
+        adminId: adminId || undefined
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Ошибка: ' + (data.error || 'Не удалось создать пользователя'));
+      return;
+    }
+
+    alert('✅ Пользователь успешно создан');
+    document.getElementById('createUserForm').reset();
+    document.getElementById('adminSelectDiv').style.display = 'none';
+    await loadUsers();
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    alert('Ошибка: ' + error.message);
+  }
+}
+
+async function deleteUser(userId) {
+  if (!confirm('Вы уверены? Удаление необратимо.')) {
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('jwt_token');
+    const response = await fetch(`/api/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Ошибка: ' + (data.error || 'Не удалось удалить пользователя'));
+      return;
+    }
+
+    alert('✅ Пользователь удален');
+    await loadUsers();
+
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    alert('Ошибка: ' + error.message);
+  }
 }
 
 // ========================================

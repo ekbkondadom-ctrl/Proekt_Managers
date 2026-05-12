@@ -266,6 +266,13 @@ router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       creatorId
     );
 
+    // When super_admin creates a new admin — transfer all super_admin's projects to the new admin
+    if (role === 'admin' && creatorRole === 'super_admin') {
+      db.prepare('UPDATE projects SET owner_admin_id = ? WHERE owner_admin_id = ?')
+        .run(userId, creatorId);
+      logConsole('info', 'Projects transferred to new admin', { from: creatorId, to: userId });
+    }
+
     // Auto-assign admin's projects to new manager
     if (role === 'manager' && resolvedAdminId) {
       const adminProjects = db.prepare('SELECT id FROM projects WHERE owner_admin_id = ?').all(resolvedAdminId);
@@ -475,10 +482,23 @@ router.put('/:id', adminOrSuperAdmin, asyncHandler(async (req, res) => {
         now, superAdminId, userId);
     }
 
-    // Обновляем список разрешённых проектов (если передан)
-    if (req.body.allowedProjectIds !== undefined) {
+    // Обновляем список разрешённых проектов для менеджеров
+    if (req.body.allowedProjectIds !== undefined && user.role !== 'admin') {
       db.prepare('UPDATE users SET allowed_project_ids = ? WHERE id = ?')
         .run(JSON.stringify(Array.isArray(req.body.allowedProjectIds) ? req.body.allowedProjectIds : []), userId);
+    }
+
+    // Перераспределение проектов для admin: super_admin назначает/снимает проекты
+    if (req.body.ownedProjectIds !== undefined && requesterRole === 'super_admin' && user.role === 'admin') {
+      const newOwnedIds = Array.isArray(req.body.ownedProjectIds) ? req.body.ownedProjectIds : [];
+      // Return all current admin's projects back to super_admin
+      db.prepare('UPDATE projects SET owner_admin_id = ? WHERE owner_admin_id = ?').run(superAdminId, userId);
+      // Assign the selected projects to this admin
+      if (newOwnedIds.length) {
+        const placeholders = newOwnedIds.map(() => '?').join(',');
+        db.prepare(`UPDATE projects SET owner_admin_id = ? WHERE id IN (${placeholders})`).run(userId, ...newOwnedIds);
+      }
+      logConsole('info', 'Admin project ownership updated', { adminId: userId, ownedCount: newOwnedIds.length });
     }
 
     // Логируем изменение

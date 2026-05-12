@@ -1196,6 +1196,7 @@ function normalizeProjectForClient(project) {
     multiSel: (project.multiSel && typeof project.multiSel === 'object') ? project.multiSel : {},
     versions: Array.isArray(project.versions) ? project.versions : [],
     updated_at: project.updated_at || 0,
+    ownerAdminId: project.ownerAdminId || project.owner_admin_id || null,
     _synced: project._synced !== undefined ? project._synced : (typeof project.id === 'string' && project.id.includes('-'))
   };
 }
@@ -4003,23 +4004,27 @@ async function handleCreateUser(event) {
 var _uprUserId = null;
 var _uprAllowedIds = [];
 
+var _uprIsAdmin = false;
+
 async function openUserProjectsModal(userId, userName) {
   _uprUserId = userId;
   const user = allUsers.find(u => u.id === userId);
-  _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : [];
+  _uprIsAdmin = user?.role === 'admin';
   document.getElementById('uprModalName').textContent = userName;
   document.getElementById('userProjectsModal').style.display = 'flex';
 
   const listEl = document.getElementById('uprProjectsList');
   listEl.innerHTML = '<div style="padding:12px;color:#888;text-align:center">Загрузка...</div>';
 
-  // For admins: fetch their own projects by adminId; for managers: fetch all accessible projects
+  // Always fetch fresh project list from backend
   let projList = [];
   if (localStorage.getItem('jwt_token')) {
-    const isAdminTarget = user?.role === 'admin';
-    const url = isAdminTarget ? `/api/projects?adminId=${userId}` : '/api/projects';
-    const res = await apiRequest(url, { method: 'GET' });
-    if (res.ok && res.json.success) projList = res.json.projects || [];
+    const res = await apiRequest('/api/projects', { method: 'GET' });
+    if (res.ok && res.json.success) projList = (res.json.projects || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      ownerAdminId: p.ownerAdminId || p.owner_admin_id || null
+    }));
   }
   if (!projList.length) projList = projects;
 
@@ -4028,8 +4033,14 @@ async function openUserProjectsModal(userId, userName) {
     return;
   }
 
-  // If allowedProjectIds not set — all projects checked by default
-  if (!user?.allowedProjectIds) _uprAllowedIds = projList.map(p => p.id);
+  if (_uprIsAdmin) {
+    // Pre-check projects owned by this admin; if admin has none yet — pre-check all (initial setup convenience)
+    const ownedByAdmin = projList.filter(p => p.ownerAdminId === userId).map(p => p.id);
+    _uprAllowedIds = ownedByAdmin.length > 0 ? ownedByAdmin : projList.map(p => p.id);
+  } else {
+    // For manager targets: use allowedProjectIds, defaulting to all
+    _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : projList.map(p => p.id);
+  }
 
   listEl.innerHTML = projList.map(p =>
     `<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #f0f0f0;cursor:pointer">
@@ -4052,14 +4063,18 @@ function uprToggle(projectId, checked) {
 
 async function saveUserProjects() {
   if (!_uprUserId) return;
+  const body = _uprIsAdmin
+    ? { ownedProjectIds: _uprAllowedIds }
+    : { allowedProjectIds: _uprAllowedIds };
   const result = await apiRequest(`/api/users/${_uprUserId}`, {
     method: 'PUT',
-    body: JSON.stringify({ allowedProjectIds: _uprAllowedIds })
+    body: JSON.stringify(body)
   });
   if (result.ok && result.json.success) {
     const u = allUsers.find(u => u.id === _uprUserId);
-    if (u) u.allowedProjectIds = [..._uprAllowedIds];
+    if (u && !_uprIsAdmin) u.allowedProjectIds = [..._uprAllowedIds];
     closeUserProjectsModal();
+    if (_uprIsAdmin) await loadBackendProjects();
   } else {
     alert('Ошибка сохранения: ' + (result.json?.error || 'неизвестная ошибка'));
   }

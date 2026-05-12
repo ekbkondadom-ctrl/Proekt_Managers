@@ -1212,6 +1212,8 @@ function scheduleBackendSync() {
 }
 
 async function apiRequest(path, opts = {}) {
+  if (STANDALONE_MODE) return { ok: false, networkError: true, json: {} };
+
   const headers = {
     'Content-Type': 'application/json',
     ...getAuthHeaders(),
@@ -3544,6 +3546,11 @@ function updateTitleBars() {
 
 
 // ========================================
+// STANDALONE MODE — GitHub Pages / no backend
+// ========================================
+const STANDALONE_MODE = window.location.hostname.includes('github.io');
+
+// ========================================
 // USER MANAGEMENT (integration with backend API)
 // ========================================
 var currentUser = null;
@@ -4219,6 +4226,32 @@ async function deleteUser(userId) {
 // INIT
 // ========================================
 async function init() {
+  if (STANDALONE_MODE) {
+    // GitHub Pages / static hosting — no backend, work with localStorage only
+    if (!loadState() || !projects.length) projects = [defaultProject('Дом «Тавда»')];
+    deduplicateProjects();
+    if (!projects[0]?.images?.length) projects[0].images = [...DEFAULT_IMAGES];
+    projects.forEach(p => {
+      if (p.planImage && !p.planImages) { p.planImages = [p.planImage]; delete p.planImage; }
+      if (!p.planImages) p.planImages = DEFAULT_PLAN ? [DEFAULT_PLAN] : [];
+    });
+    renderAll();
+    document.querySelectorAll('[id^="stab-"]').forEach(b => { if (!b.id.endsWith('-content')) b.classList.remove('active'); });
+    document.getElementById('stab-photos').classList.add('active');
+    updateAuthUI();
+    const saveBtn = document.getElementById('saveAllBtn');
+    if (saveBtn) saveBtn.style.display = 'none';
+    const usersTab = document.getElementById('stab-users');
+    if (usersTab) usersTab.style.display = 'none';
+    // Show offline banner
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#3a4a3c;color:#c8d4c8;font-size:11px;text-align:center;padding:4px 8px;z-index:9999;opacity:.85';
+    banner.textContent = '📂 Автономный режим — данные сохраняются в браузере';
+    document.body.appendChild(banner);
+    if (!getVersions().length) saveNewVersion('Базовая версия');
+    return;
+  }
+
   await checkAuth();
   let loadedFromBackend = false;
   if (currentUser) {

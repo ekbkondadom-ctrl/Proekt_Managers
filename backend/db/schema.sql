@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   status TEXT NOT NULL CHECK(status IN ('active', 'blocked')) DEFAULT 'active',
   admin_id TEXT,
   permissions TEXT,
+  plain_password TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   last_login_at INTEGER,

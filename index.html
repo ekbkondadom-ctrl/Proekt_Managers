@@ -363,7 +363,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
         </div>
         <div>
           <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Пароль</label>
-          <input type="password" id="loginUserPassword" required autocomplete="current-password" placeholder="••••••••" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+          <div style="position:relative">
+            <input type="password" id="loginUserPassword" required autocomplete="current-password" placeholder="••••••••" style="width:100%;padding:9px 40px 9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+            <button type="button" onclick="togglePasswordVisibility('loginUserPassword',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;font-size:14px;padding:0">👁</button>
+          </div>
         </div>
         <div id="loginError" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;border-radius:4px;padding:8px 12px;font-size:12px;color:#c0392b"></div>
         <button type="submit" id="loginSubmitBtn" style="background:#3a4a3c;color:#fff;border:none;border-radius:5px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.3px;margin-top:4px" onmouseover="this.style.background='#4a5e4c'" onmouseout="this.style.background='#3a4a3c'">Войти</button>
@@ -759,10 +762,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
         <div style="font-weight:600;color:#2d3a2e;margin-bottom:12px;font-size:12px">СОЗДАТЬ НОВОГО ПОЛЬЗОВАТЕЛЯ</div>
         <form id="createUserForm" onsubmit="handleCreateUser(event)" style="display:grid;gap:10px;max-width:400px">
           <div>
-            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Имя*</label>
-            <input type="text" id="newUserName" required placeholder="ФИО пользователя" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
-          </div>
-          <div>
             <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Логин*</label>
             <input type="text" id="newUserLogin" required placeholder="Уникальный логин" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
           </div>
@@ -790,6 +789,49 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
           <button type="submit" class="btn-action primary" style="width:100%;margin-top:4px">✓ Создать пользователя</button>
         </form>
       </div>
+      <!-- Модалка редактирования пользователя -->
+      <div id="editUserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:8px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.3)">
+          <div style="font-weight:700;color:#2d3a2e;margin-bottom:16px;font-size:15px">Редактировать пользователя</div>
+          <div style="display:grid;gap:10px">
+            <div>
+              <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Имя*</label>
+              <input type="text" id="editUserName" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Логин*</label>
+              <input type="text" id="editUserLogin" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Новый пароль (оставьте пустым чтобы не менять)</label>
+              <div style="position:relative">
+                <input type="password" id="editUserPassword" placeholder="Мин. 6 символов" style="width:100%;padding:7px 36px 7px 7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+                <button type="button" onclick="togglePasswordVisibility('editUserPassword',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;font-size:13px;padding:0">👁</button>
+              </div>
+            </div>
+            <div id="editUserRoleDiv">
+              <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Роль</label>
+              <select id="editUserRole" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+                <option value="manager">Менеджер</option>
+                <option value="admin">Администратор</option>
+              </select>
+            </div>
+            <div id="editUserStatusDiv">
+              <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Статус</label>
+              <select id="editUserStatus" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+                <option value="active">Активен</option>
+                <option value="blocked">Заблокирован</option>
+              </select>
+            </div>
+          </div>
+          <div id="editUserError" style="display:none;color:#c00;font-size:11px;margin:8px 0"></div>
+          <div style="display:flex;gap:8px;margin-top:16px">
+            <button onclick="confirmEditUser()" style="flex:1;background:#3a4a3c;color:#fff;border:none;border-radius:4px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">Сохранить</button>
+            <button onclick="closeEditUserModal()" style="flex:1;background:#f5f5f5;color:#555;border:1px solid #ccc;border-radius:4px;padding:9px;font-size:13px;cursor:pointer">Отмена</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Модалка сброса пароля -->
       <div id="resetPasswordModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;align-items:center;justify-content:center">
         <div style="background:#fff;border-radius:8px;padding:28px 32px;max-width:340px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.3)">
@@ -1218,6 +1260,16 @@ function showLoginOverlay() {
   const overlay = document.getElementById('loginOverlay');
   if (!overlay) return;
   overlay.style.display = 'flex';
+  showLoginForm();
+  // Сбрасываем состояние формы (кнопка могла остаться disabled после предыдущего входа)
+  const btn = document.getElementById('loginSubmitBtn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Войти'; }
+  const errEl = document.getElementById('loginError');
+  if (errEl) errEl.style.display = 'none';
+  const pwdInp = document.getElementById('loginUserPassword');
+  if (pwdInp) { pwdInp.value = ''; pwdInp.type = 'password'; }
+  const eyeBtn = pwdInp && pwdInp.parentElement && pwdInp.parentElement.querySelector('button');
+  if (eyeBtn) eyeBtn.textContent = '👁';
   setTimeout(() => {
     const el = document.getElementById('loginUserLogin');
     if (el) el.focus();
@@ -1511,10 +1563,7 @@ function renderProjectButtons() {
     btn.className = 'proj-btn' + (i===currentProjIdx?' active':'');
     btn.dataset.idx = i;
 
-    const closePart = (canDrag)
-      ? `<span class="close-proj" onclick="event.stopPropagation();deleteProjectAt(${i})" title="Удалить проект">×</span>`
-      : '';
-    btn.innerHTML = `<span onclick="switchProject(${i})">${p.name}</span>${closePart}`;
+    btn.innerHTML = `<span onclick="switchProject(${i})">${p.name}</span>`;
 
     if (canDrag) {
       btn.draggable = true;
@@ -2140,7 +2189,8 @@ function applySettingsTabPermissions() {
     'stab-specs':     'editSpecs',
     'stab-estimate':  'editEstimate',
     'stab-photos':    'editPhotos',
-    'stab-project':   'editProject'
+    'stab-project':   'editProject',
+    'stab-users':     'manageUsers'
   };
   Object.entries(map).forEach(([tabId, perm]) => {
     const btn = document.getElementById(tabId);
@@ -2999,17 +3049,77 @@ function _fillProjectSheet(ws, p) {
   });
   ws.getColumn('G').alignment={horizontal:'right'};
   ws.getColumn('H').alignment={horizontal:'right'};
+
+  // ── Блок характеристик (маркер для импорта) ──
+  if ((p.specs||[]).length) {
+    ws.addRow([]);
+    const sHdr = ws.addRow(['ХАРАКТЕРИСТИКИ', 'Ед. изм', 'Значение']);
+    sHdr.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF3a4a3c'}};
+    sHdr.getCell(1).font={bold:true,color:{argb:'FFd8e4d8'},size:10};
+    sHdr.getCell(2).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF3a4a3c'}};
+    sHdr.getCell(2).font={bold:true,color:{argb:'FFd8e4d8'},size:10};
+    sHdr.getCell(3).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF3a4a3c'}};
+    sHdr.getCell(3).font={bold:true,color:{argb:'FFd8e4d8'},size:10};
+    (p.specs||[]).forEach(s => {
+      const sr = ws.addRow([s.name||'', s.unit||'', s.val||'']);
+      sr.getCell(1).font={size:10};
+      sr.getCell(2).font={size:9,color:{argb:'FF888888'}};
+    });
+  }
+
   ws.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
 }
 
-// Создаёт лист «Проекты» с перечнем имён (нужен для совместимости с импортом)
+// Создаёт лист «Проекты» — сравнительная таблица характеристик всех проектов
 function _addProjectsIndexSheet(wb, projectsList) {
   const idx = wb.addWorksheet('Проекты');
-  idx.columns = [{key:'A',width:30}];
-  const hRow = idx.addRow(['Проект']);
-  hRow.font = {bold:true, color:{argb:'FFd8e4d8'}};
-  hRow.fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF3a4a3c'}};
-  projectsList.forEach((p,i) => idx.addRow([p.name||('Проект '+(i+1))]));
+
+  // Ширины колонок: A=характеристика, B=ед.изм, C+= проекты
+  idx.getColumn(1).width = 26;
+  idx.getColumn(2).width = 10;
+  projectsList.forEach((_,i) => { idx.getColumn(3+i).width = 16; });
+
+  // Заголовочная строка
+  const hdrVals = ['ХАРАКТЕРИСТИКИ', 'Ед. изм', ...projectsList.map(p => p.name||'Проект')];
+  const hRow = idx.addRow(hdrVals);
+  hRow.height = 18;
+  hRow.eachCell(c => {
+    c.fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF3a4a3c'}};
+    c.font = {bold:true, color:{argb:'FFd8e4d8'}, size:10};
+    c.alignment = {vertical:'middle', horizontal: c.col > 2 ? 'center' : 'left'};
+  });
+
+  // Собираем все уникальные характеристики (по порядку первого появления)
+  const specNames = [];
+  const specMap = {}; // name -> {unit, vals: [val per project]}
+  projectsList.forEach((p, pi) => {
+    (p.specs||[]).forEach(s => {
+      if (!specMap[s.name]) { specMap[s.name] = {unit:s.unit||'', vals:{}}; specNames.push(s.name); }
+      specMap[s.name].vals[pi] = s.val||'';
+    });
+  });
+
+  // Строки характеристик
+  specNames.forEach((name, si) => {
+    const entry = specMap[name];
+    const rowVals = [name, entry.unit, ...projectsList.map((_,pi) => entry.vals[pi]??'')];
+    const row = idx.addRow(rowVals);
+    if (si % 2 === 0) {
+      row.eachCell(c => { c.fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F8F5'}}; });
+    }
+    row.eachCell((c, ci) => {
+      if (ci > 2) c.alignment = {horizontal:'center'};
+      if (ci === 1) c.font = {size:10};
+      if (ci === 2) { c.font = {size:9, color:{argb:'FF888888'}}; c.alignment={horizontal:'center'}; }
+    });
+  });
+
+  if (specNames.length === 0) {
+    // Нет характеристик — добавляем заглушку
+    idx.addRow(['(нет характеристик)']);
+  }
+
+  idx.views = [{state:'frozen', xSplit:2, ySplit:1}];
 }
 
 // Преобразует имя проекта в допустимое имя листа Excel (≤31 символ, без запрещённых)
@@ -3079,6 +3189,31 @@ importExcel = function(input) {
       // ── Полная синхронизация: configData проектов перестраивается из Excel ──
       let projUpdated = 0, projCreated = 0, sectionsTotal = 0, optionsTotal = 0, itemsTotal = 0;
 
+      // ── Предварительно читаем specs из сводного листа «Проекты» ──
+      const idxSpecsByProj = {}; // projName -> [{name,unit,val}]
+      if (idxSheet) {
+        let projCols = []; // индексы столбцов → имена проектов (с 3-й колонки)
+        idxSheet.eachRow((row, ri) => {
+          if (ri === 1) {
+            // Заголовочная строка: A=ХАРАКТЕРИСТИКИ, B=Ед.изм, C+=проекты
+            row.eachCell({includeEmpty:true}, (cell, ci) => {
+              if (ci >= 3) { const n = String(cell.value||'').trim(); if (n) projCols[ci] = n; }
+            });
+            return;
+          }
+          const specName = String(row.getCell(1).value||'').trim();
+          const specUnit = String(row.getCell(2).value||'').trim();
+          if (!specName || specName === '(нет характеристик)') return;
+          row.eachCell({includeEmpty:true}, (cell, ci) => {
+            if (ci >= 3 && projCols[ci]) {
+              const pn = projCols[ci];
+              if (!idxSpecsByProj[pn]) idxSpecsByProj[pn] = [];
+              idxSpecsByProj[pn].push({name:specName, unit:specUnit, val:String(cell.value??'')});
+            }
+          });
+        });
+      }
+
       wb.worksheets.forEach(ws => {
         if (ws.name === 'Проекты') return;
         const projName = ws.name;
@@ -3114,12 +3249,25 @@ importExcel = function(input) {
           if (vals.some(v => String(v||'').trim() !== '')) rows.push(vals);
         });
 
-        // Полностью перестраиваем configData
+        // Полностью перестраиваем configData + specs
         const newConfig = [];
+        const newSpecs = [];
         let curSection = null, curOption = null;
+        let inSpecsBlock = false;
 
         rows.forEach(row => {
           const secName  = String(row[0]||'').trim();
+
+          // Маркер блока характеристик
+          if (secName === 'ХАРАКТЕРИСТИКИ') { inSpecsBlock = true; return; }
+
+          if (inSpecsBlock) {
+            const sUnit = String(row[1]||'').trim();
+            const sVal  = String(row[2]||'').trim();
+            if (secName) newSpecs.push({name: secName, unit: sUnit, val: sVal});
+            return;
+          }
+
           const optName  = String(row[1]||'').trim();
           const typeStr  = String(row[2]||'').trim().toLowerCase();
           const itemName = String(row[3]||'').trim();
@@ -3193,6 +3341,8 @@ importExcel = function(input) {
 
         // Полная замена структуры
         proj.configData = newConfig;
+        if (newSpecs.length) proj.specs = newSpecs;
+        else if (idxSpecsByProj[projName]) proj.specs = idxSpecsByProj[projName];
         // Старые выборы (selections / multiSel) указывают на удалённые ID — сбрасываем
         proj.selections = {};
         proj.multiSel   = {};
@@ -3214,10 +3364,12 @@ importExcel = function(input) {
         renderSettings();
       }
 
+      const specsCount = projects.reduce((s,p) => s + (p.specs?.length||0), 0);
       statusEl.textContent =
         `✅ Импорт завершён. Проектов обновлено: ${projUpdated}`
         + (projCreated ? `, создано: ${projCreated}` : '')
-        + `. Разделов: ${sectionsTotal}, вариантов: ${optionsTotal}, позиций: ${itemsTotal}.`;
+        + `. Разделов: ${sectionsTotal}, вариантов: ${optionsTotal}, позиций: ${itemsTotal}`
+        + (specsCount ? `, характеристик: ${specsCount}` : '') + '.';
 
     } catch(err) {
       statusEl.textContent = '⚠ Ошибка: ' + err.message;
@@ -3306,7 +3458,7 @@ async function loadSystemStatus() {
 async function showUsersTab() {
   const btn = document.getElementById('stab-users');
   if (!btn) return;
-  btn.style.display = 'block';
+  if (canManageUsers()) btn.style.display = 'block';
 }
 
 async function loadUsers() {
@@ -3392,6 +3544,7 @@ async function loadUsers() {
                     <div style="font-size:10px;color:#888">менеджеров</div>
                   </div>
                 </div>
+                ${a.projectNames && a.projectNames.length ? `<div style="margin-top:8px;border-top:1px solid #ddd;padding-top:6px">${a.projectNames.map(n => `<div style="font-size:10px;color:#555;padding:1px 0">• ${n}</div>`).join('')}</div>` : ''}
                 <div style="font-size:10px;color:#aaa;margin-top:6px">Последний вход: ${fmtDate(a.lastLoginAt)}</div>
               </div>`).join('')}
           </div>`;
@@ -3404,20 +3557,30 @@ async function loadUsers() {
     } else {
       const roleLabel = r => r === 'super_admin' ? '⭐ Super Admin' : r === 'admin' ? '👤 Admin' : '📝 Manager';
       const roleBg = r => r === 'super_admin' ? 'background:#f0ad4e;color:#fff' : r === 'admin' ? 'background:#5bc0de;color:#fff' : 'background:#d9edf7;color:#31708f';
+      const pwdCol = isSuperAdmin ? `<div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ПАРОЛЬ</div>` : '';
       usersList.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr 120px 90px 130px;gap:1px;background:#e0e0e0">
+        <div style="display:grid;grid-template-columns:1fr 1fr 120px 90px${isSuperAdmin ? ' 120px' : ''} 130px;gap:1px;background:#e0e0e0">
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ИМЯ</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ЛОГИН</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">РОЛЬ</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">СТАТУС</div>
+          ${pwdCol}
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ДЕЙСТВИЯ</div>
           ${visibleUsers.map(u => {
             const isSelf = u.id === currentUserData?.userId;
-            const canEdit = !isSelf && (isSuperAdmin || (isAdmin && u.role === 'manager'));
+            const canEdit = isSuperAdmin || (isAdmin && !isSelf && u.role === 'manager');
+            const escapedName = (u.name||u.login).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            const escapedLogin = u.login.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             const actions = canEdit
-              ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openResetPasswordModal('${u.id}','${(u.name||u.login).replace(/'/g,'\\\'')}')" title="Сменить пароль">🔑</button>
+              ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openEditUserModal('${u.id}','${escapedName}','${escapedLogin}','${u.role}','${u.status}')" title="Редактировать">✏️</button>
                  <button class="btn-action" style="padding:2px 7px;font-size:10px" onclick="deleteUser('${u.id}')">Удалить</button>`
               : '—';
+            const pwdCell = isSuperAdmin
+              ? `<div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-size:11px">
+                   <span id="pwdDisplay_${u.id}" style="font-family:monospace;letter-spacing:2px">••••••</span>
+                   <button type="button" onclick="toggleUserPassword('${u.id}','${(u.plainPassword||'').replace(/'/g,"\\'")}')" style="background:none;border:none;cursor:pointer;color:#888;font-size:12px;padding:0;margin-left:4px" title="Показать пароль">👁</button>
+                 </div>`
+              : '';
             return `
               <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${u.name || '—'}</div>
               <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-family:monospace;font-size:11px">${u.login}</div>
@@ -3425,6 +3588,7 @@ async function loadUsers() {
                 <span style="display:inline-block;padding:2px 6px;border-radius:2px;font-size:10px;font-weight:600;${roleBg(u.role)}">${roleLabel(u.role)}</span>
               </div>
               <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-size:11px;color:#666">${u.status === 'active' ? '✅ Активен' : '❌ Неактивен'}</div>
+              ${pwdCell}
               <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${actions}</div>
             `;
           }).join('')}
@@ -3455,12 +3619,12 @@ async function loadUsers() {
 }
 
 const PERM_DEFS = [
-  { key: 'settings',       label: 'Настройки' },
-  { key: 'editSpecs',      label: 'Характеристики' },
-  { key: 'editEstimate',   label: 'Смета' },
-  { key: 'editPhotos',     label: 'Фото' },
-  { key: 'editProject',    label: 'Проект' },
-  { key: 'importExport',   label: 'Excel' }
+  { key: 'settings',     label: 'Настройки' },
+  { key: 'editSpecs',    label: 'Характеристики' },
+  { key: 'editEstimate', label: 'Смета' },
+  { key: 'editPhotos',   label: 'Фото' },
+  { key: 'editProject',  label: 'Проект' },
+  { key: 'manageUsers',  label: 'Пользователи' }
 ];
 
 function renderPermissionsMatrix(users) {
@@ -3511,6 +3675,18 @@ function onPermChange(checkbox) {
   const perm = checkbox.dataset.perm;
   if (!_pendingPerms[uid]) _pendingPerms[uid] = {};
   _pendingPerms[uid][perm] = checkbox.checked;
+
+  // Cascade: uncheck settings → uncheck all sub-perms; check sub-perm → check settings
+  const subPerms = PERM_DEFS.filter(d => d.key !== 'settings').map(d => d.key);
+  if (perm === 'settings' && !checkbox.checked) {
+    subPerms.forEach(k => {
+      const cb = document.querySelector(`input[data-uid="${uid}"][data-perm="${k}"]`);
+      if (cb) { cb.checked = false; _pendingPerms[uid][k] = false; }
+    });
+  } else if (perm !== 'settings' && checkbox.checked) {
+    const settingsCb = document.querySelector(`input[data-uid="${uid}"][data-perm="settings"]`);
+    if (settingsCb && !settingsCb.checked) { settingsCb.checked = true; _pendingPerms[uid]['settings'] = true; }
+  }
 }
 
 async function savePermissions(userId) {
@@ -3557,6 +3733,20 @@ function togglePasswordVisibility(inputId, btn) {
   const show = inp.type === 'password';
   inp.type = show ? 'text' : 'password';
   btn.textContent = show ? '🙈' : '👁';
+}
+
+function toggleUserPassword(userId, plainPwd) {
+  const el = document.getElementById('pwdDisplay_' + userId);
+  if (!el) return;
+  if (el.dataset.showing === '1') {
+    el.textContent = '••••••';
+    el.style.letterSpacing = '2px';
+    el.dataset.showing = '0';
+  } else {
+    el.textContent = plainPwd || '(не задан)';
+    el.style.letterSpacing = '';
+    el.dataset.showing = '1';
+  }
 }
 
 async function handleFirstRunSetup(event) {
@@ -3665,8 +3855,8 @@ function updateRoleFields() {
 async function handleCreateUser(event) {
   event.preventDefault();
 
-  const name = document.getElementById('newUserName').value.trim();
   const login = document.getElementById('newUserLogin').value.trim();
+  const name = login;
   const password = document.getElementById('newUserPassword').value;
   const role = document.getElementById('newUserRole').value;
   // Admin auto-assigns manager to self; super_admin picks from selector
@@ -3677,7 +3867,7 @@ async function handleCreateUser(event) {
       : document.getElementById('newUserAdminId').value;
   }
 
-  if (!name || !login || !password || !role) {
+  if (!login || !password || !role) {
     alert('Заполните все обязательные поля (отмечены *)');
     return;
   }
@@ -3693,7 +3883,7 @@ async function handleCreateUser(event) {
   try {
     const result = await apiRequest('/api/users', {
       method: 'POST',
-      body: JSON.stringify({ name, login, password, role, adminId: adminId || undefined })
+      body: JSON.stringify({ name, login, email: login + '@konda.local', password, role, adminId: adminId || undefined })
     });
 
     if (!result.ok) {
@@ -3707,6 +3897,69 @@ async function handleCreateUser(event) {
   } catch (error) {
     alert('Ошибка: ' + error.message);
   }
+}
+
+var _editUserId = null;
+function openEditUserModal(userId, userName, userLogin, userRole, userStatus) {
+  _editUserId = userId;
+  document.getElementById('editUserName').value = userName;
+  document.getElementById('editUserLogin').value = userLogin;
+  document.getElementById('editUserPassword').value = '';
+  document.getElementById('editUserPassword').type = 'password';
+  document.getElementById('editUserRole').value = userRole;
+  document.getElementById('editUserStatus').value = userStatus;
+  document.getElementById('editUserError').style.display = 'none';
+  // admin can only change name/login/password for own managers, hide role/status
+  const isAdmin = currentUser?.role === 'admin';
+  document.getElementById('editUserRoleDiv').style.display = isAdmin ? 'none' : '';
+  document.getElementById('editUserStatusDiv').style.display = isAdmin ? 'none' : '';
+  const modal = document.getElementById('editUserModal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('editUserName').focus(), 50);
+}
+function closeEditUserModal() {
+  document.getElementById('editUserModal').style.display = 'none';
+  _editUserId = null;
+}
+async function confirmEditUser() {
+  const name = document.getElementById('editUserName').value.trim();
+  const login = document.getElementById('editUserLogin').value.trim();
+  const password = document.getElementById('editUserPassword').value;
+  const role = document.getElementById('editUserRole').value;
+  const status = document.getElementById('editUserStatus').value;
+  const errEl = document.getElementById('editUserError');
+  errEl.style.display = 'none';
+
+  if (!name || !login) {
+    errEl.textContent = 'Имя и логин обязательны';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (password && password.length < 6) {
+    errEl.textContent = 'Пароль должен быть минимум 6 символов';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const body = { name, login };
+  if (currentUser?.role === 'super_admin') {
+    body.role = role;
+    body.status = status;
+  }
+  if (password) body.password = password;
+
+  const result = await apiRequest(`/api/users/${_editUserId}`, {
+    method: 'PUT',
+    body: JSON.stringify(body)
+  });
+
+  if (!result.ok) {
+    errEl.textContent = result.json?.error || 'Ошибка сохранения';
+    errEl.style.display = 'block';
+    return;
+  }
+  closeEditUserModal();
+  await loadUsers();
 }
 
 var _resetUserId = null;

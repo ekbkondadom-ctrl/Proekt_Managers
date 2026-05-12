@@ -157,9 +157,9 @@ router.post('/setup', asyncHandler(async (req, res) => {
 
     const insertStmt = db.prepare(`
       INSERT INTO users (
-        id, name, login, email, password_hash, role, status,
+        id, name, login, email, password_hash, plain_password, role, status,
         created_at, updated_at, created_by, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     insertStmt.run(
@@ -168,11 +168,12 @@ router.post('/setup', asyncHandler(async (req, res) => {
       login,
       email,
       passwordHash,
+      password,
       'super_admin',
       'active',
       now,
       now,
-      userId, // created_by = сам себя (первый)
+      userId,
       userId
     );
 

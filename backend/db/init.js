@@ -93,6 +93,7 @@ async function initDatabase() {
     // Migrations for existing databases
     try { db.exec('ALTER TABLE users ADD COLUMN permissions TEXT'); } catch(e) {}
     try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch(e) {}
+    try { db.exec('ALTER TABLE users ADD COLUMN plain_password TEXT'); } catch(e) {}
 
     saveDatabase(db);
 

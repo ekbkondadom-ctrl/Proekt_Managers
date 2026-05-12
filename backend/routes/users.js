@@ -105,6 +105,7 @@ router.get('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       status: u.status,
       adminId: u.admin_id,
       permissions: u.permissions ? JSON.parse(u.permissions) : null,
+      plainPassword: requestingUser.role === 'super_admin' ? (u.plain_password || null) : undefined,
       createdAt: u.created_at,
       updatedAt: u.updated_at,
       lastLoginAt: u.last_login_at
@@ -243,9 +244,9 @@ router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
 
     const insertStmt = db.prepare(`
       INSERT INTO users (
-        id, name, login, email, password_hash, role, status,
+        id, name, login, email, password_hash, plain_password, role, status,
         admin_id, created_at, updated_at, created_by, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     insertStmt.run(
@@ -254,6 +255,7 @@ router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       login,
       email || null,
       passwordHash,
+      password,
       role,
       'active',
       resolvedAdminId,
@@ -308,14 +310,15 @@ router.get('/admin-stats', onlySuperAdmin, asyncHandler(async (req, res) => {
     const admins = db.prepare("SELECT id, name, login, last_login_at FROM users WHERE role = 'admin' AND status = 'active'").all();
 
     const stats = admins.map(admin => {
-      const projectCount = db.prepare('SELECT COUNT(*) as cnt FROM projects WHERE owner_admin_id = ?').get(admin.id)?.cnt || 0;
+      const projects = db.prepare('SELECT name FROM projects WHERE owner_admin_id = ? ORDER BY created_at DESC').all(admin.id);
       const managerCount = db.prepare("SELECT COUNT(*) as cnt FROM users WHERE admin_id = ? AND role = 'manager' AND status = 'active'").get(admin.id)?.cnt || 0;
       return {
         id: admin.id,
         name: admin.name,
         login: admin.login,
         lastLoginAt: admin.last_login_at,
-        projectCount,
+        projectCount: projects.length,
+        projectNames: projects.map(p => p.name),
         managerCount
       };
     });
@@ -376,11 +379,12 @@ router.get('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
  * PUT /api/users/:id
  * Редактировать пользователя (только супер-админ)
  */
-router.put('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
+router.put('/:id', adminOrSuperAdmin, asyncHandler(async (req, res) => {
   const db = req.db;
   const superAdminId = req.user.userId;
+  const requesterRole = req.user.role;
   const userId = req.params.id;
-  const { name, email, role, status, adminId } = req.body;
+  const { name, login, email, role, status, adminId, password } = req.body;
   const ipAddress = req.ipAddress;
 
   try {
@@ -396,7 +400,7 @@ router.put('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
       });
     }
 
-    // Супер-админ не может редактировать своих данные (кроме себя)
+    // Super admin cannot be modified by anyone except themselves
     if (user.role === 'super_admin' && user.id !== superAdminId) {
       return res.status(403).json({
         success: false,
@@ -405,36 +409,63 @@ router.put('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
       });
     }
 
-    // Обновляем поля
-    const updateStmt = db.prepare(`
-      UPDATE users 
-      SET name = ?, email = ?, role = ?, status = ?, admin_id = ?, updated_at = ?, updated_by = ?
-      WHERE id = ?
-    `);
+    // Admin can only edit own managers
+    if (requesterRole === 'admin') {
+      if (user.role !== 'manager' || user.admin_id !== superAdminId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin can only edit own managers',
+          code: 'FORBIDDEN'
+        });
+      }
+    }
+
+    // Check login uniqueness if changing
+    if (login && login !== user.login) {
+      const loginCheck = db.prepare('SELECT id FROM users WHERE login = ? AND id != ? LIMIT 1');
+      if (loginCheck.get(login, userId)) {
+        return res.status(409).json({ success: false, error: 'Login already exists', code: 'LOGIN_EXISTS' });
+      }
+    }
 
     const now = Math.floor(Date.now() / 1000);
+    const newName = name || user.name;
+    const newLogin = login || user.login;
+    const newRole = role || user.role;
+    const newStatus = status || user.status;
+    const newAdminId = (newRole === 'manager' && adminId) ? adminId : user.admin_id;
 
-    updateStmt.run(
-      name || user.name,
-      email || user.email,
-      role || user.role,
-      status || user.status,
-      (role === 'manager' && adminId) ? adminId : null,
-      now,
-      superAdminId,
-      userId
-    );
+    // Обновляем поля (с паролем если передан)
+    if (password && password.length >= 6) {
+      const passwordHash = await hashPassword(password);
+      const updateStmt = db.prepare(`
+        UPDATE users SET name = ?, login = ?, email = ?, role = ?, status = ?, admin_id = ?,
+          password_hash = ?, plain_password = ?, updated_at = ?, updated_by = ?
+        WHERE id = ?
+      `);
+      updateStmt.run(newName, newLogin, email || user.email, newRole, newStatus, newAdminId,
+        passwordHash, password, now, superAdminId, userId);
+    } else {
+      const updateStmt = db.prepare(`
+        UPDATE users SET name = ?, login = ?, email = ?, role = ?, status = ?, admin_id = ?,
+          updated_at = ?, updated_by = ?
+        WHERE id = ?
+      `);
+      updateStmt.run(newName, newLogin, email || user.email, newRole, newStatus, newAdminId,
+        now, superAdminId, userId);
+    }
 
     // Логируем изменение
     const changes = [];
     if (name && name !== user.name) changes.push(`name: ${user.name} → ${name}`);
-    if (email && email !== user.email) changes.push(`email: ${user.email} → ${email}`);
+    if (login && login !== user.login) changes.push(`login: ${user.login} → ${login}`);
     if (role && role !== user.role) changes.push(`role: ${user.role} → ${role}`);
     if (status && status !== user.status) changes.push(`status: ${user.status} → ${status}`);
+    if (password) changes.push('password changed');
 
     logAction(db, {
       userId: superAdminId,
-      userRole: 'super_admin',
+      userRole: requesterRole,
       action: 'user_updated',
       description: `Updated user ${user.login}: ${changes.join(', ')}`,
       targetType: 'user',
@@ -585,12 +616,12 @@ router.post('/:id/password', adminOrSuperAdmin, asyncHandler(async (req, res) =>
 
     // Обновляем пароль
     const updateStmt = db.prepare(`
-      UPDATE users SET password_hash = ?, updated_at = ?, updated_by = ?
+      UPDATE users SET password_hash = ?, plain_password = ?, updated_at = ?, updated_by = ?
       WHERE id = ?
     `);
 
     const now = Math.floor(Date.now() / 1000);
-    updateStmt.run(passwordHash, now, requesterId, userId);
+    updateStmt.run(passwordHash, newPassword, now, requesterId, userId);
 
     // Логируем смену пароля
     logAction(db, {

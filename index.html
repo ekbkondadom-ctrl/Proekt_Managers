@@ -348,23 +348,47 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
 <!-- LOGIN OVERLAY (full-screen, non-dismissable) -->
 <div id="loginOverlay" style="display:none;position:fixed;inset:0;background:rgba(30,40,32,0.92);z-index:9998;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:10px;padding:36px 40px;max-width:400px;width:90%;box-shadow:0 24px 80px rgba(0,0,0,0.5)">
-    <div style="text-align:center;margin-bottom:28px">
-      <div style="font-size:36px;margin-bottom:10px">🌲</div>
-      <div style="font-size:22px;font-weight:700;color:#2d3a2e;letter-spacing:.3px">КОНДА</div>
-      <div style="font-size:13px;color:#666;margin-top:6px">Войдите в систему для работы</div>
+    <!-- ФОРМА ВХОДА -->
+    <div id="loginFormSection">
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="font-size:36px;margin-bottom:10px">🌲</div>
+        <div style="font-size:22px;font-weight:700;color:#2d3a2e;letter-spacing:.3px">КОНДА</div>
+        <div style="font-size:13px;color:#666;margin-top:6px">Войдите в систему для работы</div>
+      </div>
+      <form onsubmit="handleLogin(event)" style="display:grid;gap:14px">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Логин</label>
+          <input type="text" id="loginUserLogin" required autocomplete="username" placeholder="Ваш логин" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Пароль</label>
+          <input type="password" id="loginUserPassword" required autocomplete="current-password" placeholder="••••••••" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+        </div>
+        <div id="loginError" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;border-radius:4px;padding:8px 12px;font-size:12px;color:#c0392b"></div>
+        <button type="submit" id="loginSubmitBtn" style="background:#3a4a3c;color:#fff;border:none;border-radius:5px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.3px;margin-top:4px" onmouseover="this.style.background='#4a5e4c'" onmouseout="this.style.background='#3a4a3c'">Войти</button>
+      </form>
+      <div style="text-align:center;margin-top:18px">
+        <button onclick="showForgotPasswordForm()" style="background:none;border:none;color:#8a6a45;font-size:12px;cursor:pointer;text-decoration:underline;padding:0">Забыл пароль?</button>
+      </div>
     </div>
-    <form onsubmit="handleLogin(event)" style="display:grid;gap:14px">
-      <div>
-        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Логин</label>
-        <input type="text" id="loginUserLogin" required autocomplete="username" placeholder="Ваш логин" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+    <!-- ФОРМА ЗАПРОСА СБРОСА ПАРОЛЯ -->
+    <div id="forgotPasswordSection" style="display:none">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:32px;margin-bottom:8px">🔑</div>
+        <div style="font-size:18px;font-weight:700;color:#2d3a2e">Запрос на доступ</div>
+        <div style="font-size:12px;color:#666;margin-top:6px;line-height:1.5">Введите ваш логин. Запрос будет направлен<br>супер-администратору системы.</div>
       </div>
-      <div>
-        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Пароль</label>
-        <input type="password" id="loginUserPassword" required autocomplete="current-password" placeholder="••••••••" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+      <div style="display:grid;gap:14px">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Ваш логин</label>
+          <input type="text" id="forgotLogin" placeholder="Введите логин" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+        </div>
+        <div id="forgotError" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;border-radius:4px;padding:8px 12px;font-size:12px;color:#c0392b"></div>
+        <div id="forgotSuccess" style="display:none;background:#f0fef4;border:1px solid #b7ebc8;border-radius:4px;padding:10px 12px;font-size:12px;color:#217a3c;line-height:1.5"></div>
+        <button id="forgotSubmitBtn" onclick="handleForgotPassword()" style="background:#3a4a3c;color:#fff;border:none;border-radius:5px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.3px" onmouseover="this.style.background='#4a5e4c'" onmouseout="this.style.background='#3a4a3c'">Отправить запрос</button>
+        <button onclick="showLoginForm()" style="background:none;border:1px solid #ccc;border-radius:5px;padding:9px;font-size:13px;color:#555;cursor:pointer">← Вернуться ко входу</button>
       </div>
-      <div id="loginError" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;border-radius:4px;padding:8px 12px;font-size:12px;color:#c0392b"></div>
-      <button type="submit" id="loginSubmitBtn" style="background:#3a4a3c;color:#fff;border:none;border-radius:5px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.3px;margin-top:4px" onmouseover="this.style.background='#4a5e4c'" onmouseout="this.style.background='#3a4a3c'">Войти</button>
-    </form>
+    </div>
   </div>
 </div>
 
@@ -409,7 +433,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
     <button class="tab-btn active" id="btnViewProj" onclick="switchView('project')">📋 Проект</button>
     <button class="tab-btn" id="btnViewSet" onclick="switchView('settings')">⚙ Настройки</button>
     <span id="userStatus" style="display:none;color:#c8c8c8;font-size:11px;white-space:nowrap;margin-left:12px"></span>
-    <button class="btn-new-proj" id="btnAuthAction" onclick="logout()" style="display:none;margin-left:8px;min-width:90px">Выйти</button>
+    <button class="btn-new-proj" id="btnAuthAction" style="display:none;margin-left:8px;min-width:90px">Войти</button>
   </div>
 </div>
 
@@ -1023,8 +1047,9 @@ function defaultProject(name) {
     planImages: DEFAULT_PLAN ? [DEFAULT_PLAN] : [],
     specs: JSON.parse(JSON.stringify(DEFAULT_SPECS)),
     configData: JSON.parse(JSON.stringify(DEFAULT_CONFIG)),
-    selections: {},     // radio: {groupId: optionId}
-    multiSel: {},       // multi: {groupId: {optId: bool}}
+    selections: {},
+    multiSel: {},
+    versions: [],
   };
 }
 
@@ -1042,6 +1067,7 @@ function blankProject(name) {
     configData: [],
     selections: {},
     multiSel: {},
+    versions: [],
   };
 }
 
@@ -1082,6 +1108,8 @@ function normalizeProjectForClient(project) {
     configData: Array.isArray(project.configData) ? project.configData : [],
     selections: (project.selections && typeof project.selections === 'object') ? project.selections : {},
     multiSel: (project.multiSel && typeof project.multiSel === 'object') ? project.multiSel : {},
+    versions: Array.isArray(project.versions) ? project.versions : [],
+    updated_at: project.updated_at || 0,
     _synced: project._synced !== undefined ? project._synced : (typeof project.id === 'string' && project.id.includes('-'))
   };
 }
@@ -1168,6 +1196,58 @@ function showLoginOverlay() {
 function closeLoginModal() {
   const overlay = document.getElementById('loginOverlay');
   if (overlay) overlay.style.display = 'none';
+  showLoginForm();
+}
+
+function showForgotPasswordForm() {
+  document.getElementById('loginFormSection').style.display = 'none';
+  document.getElementById('forgotPasswordSection').style.display = '';
+  document.getElementById('forgotLogin').value = document.getElementById('loginUserLogin').value || '';
+  document.getElementById('forgotError').style.display = 'none';
+  document.getElementById('forgotSuccess').style.display = 'none';
+  document.getElementById('forgotLogin').focus();
+}
+
+function showLoginForm() {
+  document.getElementById('loginFormSection').style.display = '';
+  document.getElementById('forgotPasswordSection').style.display = 'none';
+}
+
+async function handleForgotPassword() {
+  const login = (document.getElementById('forgotLogin').value || '').trim();
+  const errEl = document.getElementById('forgotError');
+  const okEl  = document.getElementById('forgotSuccess');
+  const btn   = document.getElementById('forgotSubmitBtn');
+
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  if (!login) {
+    errEl.textContent = 'Введите логин';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Отправка...';
+
+  const result = await apiRequest('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ login })
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Отправить запрос';
+
+  if (!result.ok) {
+    errEl.textContent = result.json?.error || 'Ошибка при отправке запроса';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  okEl.textContent = 'Запрос отправлен. Администратор системы получил уведомление и свяжется с вами для восстановления доступа.';
+  okEl.style.display = 'block';
+  btn.style.display = 'none';
 }
 
 async function handleLogin(event) {
@@ -1218,6 +1298,8 @@ async function logout() {
   localStorage.removeItem('jwt_token');
   currentUser = null;
   updateAuthUI();
+  const usersTab = document.getElementById('stab-users');
+  if (usersTab) usersTab.style.display = 'none';
   renderAll();
   showLoginOverlay();
 }
@@ -1391,7 +1473,10 @@ function renderProjectButtons() {
   projects.forEach((p,i) => {
     const btn = document.createElement('div');
     btn.className = 'proj-btn' + (i===currentProjIdx?' active':'');
-    btn.innerHTML = `<span onclick="switchProject(${i})">${p.name}</span>`;
+    const closePart = (currentUser && projects.length > 1)
+      ? `<span class="close-proj" onclick="event.stopPropagation();deleteProjectAt(${i})" title="Удалить проект">×</span>`
+      : '';
+    btn.innerHTML = `<span onclick="switchProject(${i})">${p.name}</span>${closePart}`;
     strip.appendChild(btn);
   });
   if (currentUser) {
@@ -3121,12 +3206,6 @@ function getCurrentUserFromAPI() {
   return null;
 }
 
-function canManageUsers() {
-  if (currentUser) return ['super_admin', 'admin'].includes(currentUser.role);
-  const user = getCurrentUserFromAPI();
-  return user && ['super_admin', 'admin'].includes(user.role);
-}
-
 async function loadSystemStatus() {
   try {
     const response = await fetch('/api/system/status');
@@ -3730,15 +3809,20 @@ function recalcOptionPrice(si, oi) {
 }
 
 // ================================================
-// СИСТЕМА ВЕРСИЙ
+// СИСТЕМА ВЕРСИЙ (хранится в данных проекта → синхронизируется с backend)
 // ================================================
-var VER_KEY = 'conda_versions';
-
 function getVersions() {
-  try { return JSON.parse(localStorage.getItem(VER_KEY)) || []; }
-  catch(e) { return []; }
+  const p = currentProject && currentProject();
+  return (p && Array.isArray(p.versions)) ? p.versions : [];
 }
-function setVersions(v) { localStorage.setItem(VER_KEY, JSON.stringify(v)); }
+
+function setVersions(v) {
+  const p = currentProject && currentProject();
+  if (!p) return;
+  p.versions = v;
+  _origSaveState ? _origSaveState() : saveState();
+  scheduleBackendSync();
+}
 
 function calcNextVerNum() {
   const vers = getVersions();

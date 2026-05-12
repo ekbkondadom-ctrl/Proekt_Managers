@@ -242,4 +242,48 @@ router.get('/check', authMiddleware, asyncHandler(async (req, res) => {
   }
 }));
 
+/**
+ * POST /api/auth/forgot-password
+ * Запрос на восстановление доступа — фиксирует запрос в activity_logs
+ */
+router.post('/forgot-password', asyncHandler(async (req, res) => {
+  const { login } = req.body;
+  const db = req.db;
+  const ipAddress = req.ipAddress;
+
+  if (!login) {
+    return res.status(400).json({
+      success: false,
+      error: 'Введите логин',
+      code: 'MISSING_LOGIN'
+    });
+  }
+
+  try {
+    const stmt = db.prepare(`SELECT id, name, login, email, role FROM users WHERE login = ? OR email = ? LIMIT 1`);
+    const user = stmt.get(login, login);
+
+    logAction(db, {
+      userId: user ? user.id : null,
+      userRole: user ? user.role : null,
+      action: 'password_reset_request',
+      description: `Запрос на восстановление доступа для логина: ${login}${user ? ` (${user.name})` : ' — пользователь не найден'}`,
+      targetType: 'user',
+      targetId: user ? user.id : null,
+      ipAddress: ipAddress
+    });
+
+    logConsole('info', 'Password reset request', { login, found: !!user, ip: ipAddress });
+
+    return res.json({
+      success: true,
+      message: 'Запрос зафиксирован. Администратор уведомлён.'
+    });
+
+  } catch (err) {
+    logConsole('error', 'Forgot password error', { error: err.message });
+    throw err;
+  }
+}));
+
 module.exports = router;

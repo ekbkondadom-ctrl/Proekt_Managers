@@ -89,6 +89,11 @@ async function initDatabase() {
 
     const schema = fs.readFileSync(SCHEMA_FILE, 'utf-8');
     db.exec(schema);
+
+    // Migrations for existing databases
+    try { db.exec('ALTER TABLE users ADD COLUMN permissions TEXT'); } catch(e) {}
+    try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch(e) {}
+
     saveDatabase(db);
 
     const wrappedDb = {

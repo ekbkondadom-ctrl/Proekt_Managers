@@ -21,6 +21,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
 .proj-btn.active{background:#7a6040;border-color:#7a6040;color:#fff;font-weight:600}
 .proj-btn .close-proj{color:rgba(255,255,255,0.5);font-size:10px;padding:0 2px;line-height:1;cursor:pointer}
 .proj-btn .close-proj:hover{color:#fff}
+.proj-btn.drag-over{border-color:#c8843a;background:rgba(200,132,58,0.3)}
 .btn-new-proj{padding:5px 12px;border:1px dashed rgba(180,160,120,0.5);background:transparent;color:rgba(180,160,120,0.9);border-radius:3px;cursor:pointer;font-size:12px;white-space:nowrap;transition:all .2s;margin-left:8px;flex-shrink:0}
 .export-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .export-col{display:flex;flex-direction:column;gap:8px}
@@ -252,9 +253,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
 .ce-opt-price{font-size:12px;font-weight:600;color:#7a5c30;white-space:nowrap;min-width:90px;text-align:right}
 .ce-opt-body{padding:4px 10px 4px 36px;display:none;background:#fdfdfd}
 .ce-opt-body.open{display:block}
-.ce-items-head{display:grid;grid-template-columns:24px 1fr 60px 80px 44px 24px 24px;gap:4px;padding:3px 0;border-bottom:1px solid #eee;margin-bottom:3px}
+.ce-items-head{display:grid;grid-template-columns:24px 1fr 60px 80px 90px 24px 24px;gap:4px;padding:3px 0;border-bottom:1px solid #eee;margin-bottom:3px}
 .ce-items-head span{font-size:9px;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-.ce-item-row{display:grid;grid-template-columns:24px 1fr 60px 80px 44px 24px 24px;gap:4px;align-items:center;padding:3px 0;border-bottom:1px solid #f5f5f5}
+.ce-item-row{display:grid;grid-template-columns:24px 1fr 60px 80px 90px 24px 24px;gap:4px;align-items:center;padding:3px 0;border-bottom:1px solid #f5f5f5}
 .ce-item-row:last-child{border-bottom:none}
 .ce-item-moves{display:flex;gap:2px;align-items:center;justify-content:center}
 .ce-btn-move-sm{background:#f0f5f0;border:1px solid #c0d4c0;color:#3a4a3c;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:3px;cursor:pointer;font-size:9px;flex-shrink:0;padding:0}
@@ -402,10 +403,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
     </div>
     <form id="firstRunForm" onsubmit="handleFirstRunSetup(event)" style="display:grid;gap:14px">
       <div>
-        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Ваше имя*</label>
-        <input type="text" id="frName" required placeholder="Иван Иванов" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
-      </div>
-      <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Логин*</label>
         <input type="text" id="frLogin" required placeholder="уникальный логин (мин. 3 символа)" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
       </div>
@@ -415,7 +412,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
       </div>
       <div>
         <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Пароль* (мин. 8 символов)</label>
-        <input type="password" id="frPassword" required placeholder="••••••••" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+        <div style="position:relative">
+          <input type="password" id="frPassword" required placeholder="••••••••" style="width:100%;padding:9px 40px 9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+          <button type="button" onclick="togglePasswordVisibility('frPassword',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;font-size:14px;padding:0">👁</button>
+        </div>
       </div>
       <div id="frError" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;border-radius:4px;padding:8px 12px;font-size:12px;color:#c0392b"></div>
       <button type="submit" id="frSubmitBtn" style="background:#3a4a3c;color:#fff;border:none;border-radius:5px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.3px;margin-top:4px" onmouseover="this.style.background='#4a5e4c'" onmouseout="this.style.background='#3a4a3c'">Создать аккаунт супер-администратора</button>
@@ -710,6 +710,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
   <div class="scard full">
     <div class="scard-head">Управление пользователями и доступом</div>
     <div class="scard-body" style="max-height:600px;overflow-y:auto">
+      <!-- Admin Dashboard (super_admin only) -->
+      <div id="adminDashboard" style="display:none;margin-bottom:20px"></div>
+
       <!-- Users List -->
       <div style="margin-bottom:20px">
         <div style="font-weight:600;color:#2d3a2e;margin-bottom:12px;font-size:12px">ПОЛЬЗОВАТЕЛИ СИСТЕМЫ</div>
@@ -717,6 +720,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
           <div style="padding:12px;color:#999;text-align:center">Загрузка пользователей...</div>
         </div>
       </div>
+
+      <!-- Permissions Matrix (super_admin only) -->
+      <div id="permissionsMatrix" style="display:none;margin-top:24px"></div>
 
       <!-- Create User Form (for super_admin and admin) -->
       <div id="firstSetupSection" style="display:none;padding-top:20px;border-top:1px solid #e0e0e0">
@@ -761,18 +767,17 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
             <input type="text" id="newUserLogin" required placeholder="Уникальный логин" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
           </div>
           <div>
-            <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Email</label>
-            <input type="email" id="newUserEmail" placeholder="email@example.com" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
-          </div>
-          <div>
             <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Пароль*</label>
-            <input type="password" id="newUserPassword" required placeholder="Минимум 6 символов" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
+            <div style="position:relative">
+              <input type="password" id="newUserPassword" required placeholder="Минимум 6 символов" style="width:100%;padding:6px 36px 6px 6px;border:1px solid #ccc;border-radius:2px">
+              <button type="button" onclick="togglePasswordVisibility('newUserPassword',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;font-size:13px;padding:0">👁</button>
+            </div>
           </div>
           <div>
             <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Роль*</label>
             <select id="newUserRole" required onchange="updateRoleFields()" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
               <option value="">-- Выберите роль --</option>
-              <option value="admin">Администратор (Admin)</option>
+              <option value="admin" class="role-admin-option">Администратор (Admin)</option>
               <option value="manager">Менеджер (Manager)</option>
             </select>
           </div>
@@ -784,6 +789,22 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
           </div>
           <button type="submit" class="btn-action primary" style="width:100%;margin-top:4px">✓ Создать пользователя</button>
         </form>
+      </div>
+      <!-- Модалка сброса пароля -->
+      <div id="resetPasswordModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:8px;padding:28px 32px;max-width:340px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.3)">
+          <div style="font-weight:700;color:#2d3a2e;margin-bottom:16px;font-size:15px">Сброс пароля</div>
+          <div style="font-size:12px;color:#666;margin-bottom:14px">Пользователь: <b id="resetUserLabel"></b></div>
+          <div style="position:relative;margin-bottom:12px">
+            <input type="password" id="resetNewPassword" placeholder="Новый пароль (мин. 6 символов)" style="width:100%;padding:8px 36px 8px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px">
+            <button type="button" onclick="togglePasswordVisibility('resetNewPassword',this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;font-size:13px;padding:0">👁</button>
+          </div>
+          <div id="resetPwError" style="display:none;color:#c00;font-size:11px;margin-bottom:8px"></div>
+          <div style="display:flex;gap:8px">
+            <button onclick="confirmResetPassword()" style="flex:1;background:#3a4a3c;color:#fff;border:none;border-radius:4px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">Сохранить</button>
+            <button onclick="closeResetPasswordModal()" style="flex:1;background:#f5f5f5;color:#555;border:1px solid #ccc;border-radius:4px;padding:9px;font-size:13px;cursor:pointer">Отмена</button>
+          </div>
+        </div>
       </div>
 
       <div id="accessDenied" style="display:none;padding:12px;background:#fff3cd;border:1px solid #ffeeba;border-radius:3px;color:#856404;margin-top:12px">
@@ -1162,8 +1183,10 @@ async function checkAuth() {
 function updateAuthUI() {
   const btn = document.getElementById('btnAuthAction');
   const status = document.getElementById('userStatus');
+  const btnSettings = document.getElementById('btnViewSet');
 
   if (currentUser) {
+    const isManager = currentUser.role === 'manager';
     if (status) {
       status.textContent = `${currentUser.name || currentUser.login} (${currentUser.role || 'user'})`;
       status.style.display = '';
@@ -1173,9 +1196,17 @@ function updateAuthUI() {
       btn.style.display = '';
       btn.onclick = logout;
     }
+    // Менеджер или пользователь без прав на настройки — скрыть вкладку
+    const canSeeSettings = !isManager && hasPermission('settings');
+    if (btnSettings) btnSettings.style.display = canSeeSettings ? '' : 'none';
+    if (!canSeeSettings) {
+      const sv = document.getElementById('view-settings');
+      if (sv && sv.style.display !== 'none') switchView('project');
+    }
   } else {
     if (status) status.style.display = 'none';
     if (btn) btn.style.display = 'none';
+    if (btnSettings) btnSettings.style.display = '';
   }
 }
 
@@ -1467,25 +1498,52 @@ function canManageUsers() {
 // ========================================
 // PROJECT MANAGEMENT
 // ========================================
+var _projDragIdx = null;
+
 function renderProjectButtons() {
   const strip = document.getElementById('projectsStrip');
   strip.innerHTML = '';
+  const isManager = currentUser?.role === 'manager';
+  const canDrag = !isManager && currentUser && projects.length > 1;
+
   projects.forEach((p,i) => {
     const btn = document.createElement('div');
     btn.className = 'proj-btn' + (i===currentProjIdx?' active':'');
-    const closePart = (currentUser && projects.length > 1)
+    btn.dataset.idx = i;
+
+    const closePart = (canDrag)
       ? `<span class="close-proj" onclick="event.stopPropagation();deleteProjectAt(${i})" title="Удалить проект">×</span>`
       : '';
     btn.innerHTML = `<span onclick="switchProject(${i})">${p.name}</span>${closePart}`;
+
+    if (canDrag) {
+      btn.draggable = true;
+      btn.addEventListener('dragstart', e => {
+        _projDragIdx = i;
+        e.dataTransfer.effectAllowed = 'move';
+        btn.style.opacity = '0.5';
+      });
+      btn.addEventListener('dragend', () => { btn.style.opacity = ''; _projDragIdx = null; });
+      btn.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+      btn.addEventListener('dragenter', () => btn.classList.add('drag-over'));
+      btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+      btn.addEventListener('drop', e => {
+        e.preventDefault();
+        btn.classList.remove('drag-over');
+        const targetIdx = parseInt(btn.dataset.idx, 10);
+        if (_projDragIdx !== null && _projDragIdx !== targetIdx) {
+          const moved = projects.splice(_projDragIdx, 1)[0];
+          projects.splice(targetIdx, 0, moved);
+          currentProjIdx = targetIdx;
+          saveState();
+          renderProjectButtons();
+        }
+        _projDragIdx = null;
+      });
+    }
+
     strip.appendChild(btn);
   });
-  if (currentUser) {
-    const addBtn = document.createElement('button');
-    addBtn.className = 'btn-new-proj';
-    addBtn.textContent = '+ Новый проект';
-    addBtn.onclick = newProject;
-    strip.appendChild(addBtn);
-  }
 }
 
 function switchProject(idx) {
@@ -2069,11 +2127,30 @@ function renderSettings() {
   renderSliderGrid();
   renderPlanThumb();
   renderSpecsEditor();
+  applySettingsTabPermissions();
   showUsersTab();
   if (activeSettingsTab === 'project') renderProjectForm();
   if (activeSettingsTab === 'estimate') renderConfigEditor();
   if (activeSettingsTab === 'users') loadUsers();
   updateTitleBars();
+}
+
+function applySettingsTabPermissions() {
+  const map = {
+    'stab-specs':     'editSpecs',
+    'stab-estimate':  'editEstimate',
+    'stab-photos':    'editPhotos',
+    'stab-project':   'editProject'
+  };
+  Object.entries(map).forEach(([tabId, perm]) => {
+    const btn = document.getElementById(tabId);
+    if (btn) btn.style.display = hasPermission(perm) ? '' : 'none';
+  });
+  // If current active tab got hidden, switch to photos
+  const activeBtn = document.getElementById(`stab-${activeSettingsTab}`);
+  if (activeBtn && activeBtn.style.display === 'none') {
+    showSettingsTab('photos', document.getElementById('stab-photos'));
+  }
 }
 
 function renderSliderGrid() {
@@ -3192,6 +3269,15 @@ function updateTitleBars() {
 var currentUser = null;
 var allUsers = [];
 
+// Super_admin always has all permissions; others check explicit grants (null = all allowed)
+function hasPermission(perm) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'super_admin') return true;
+  const p = currentUser.permissions;
+  if (!p) return true; // no restrictions set = full access
+  return p[perm] !== false;
+}
+
 function getCurrentUserFromAPI() {
   const token = localStorage.getItem('jwt_token');
   if (!token) return null;
@@ -3229,12 +3315,16 @@ async function loadUsers() {
   const loginRequiredSection = document.getElementById('loginRequiredSection');
   const createUserSection = document.getElementById('createUserSection');
   const accessDenied = document.getElementById('accessDenied');
+  const adminDashboard = document.getElementById('adminDashboard');
+  const permissionsMatrix = document.getElementById('permissionsMatrix');
 
   if (usersList) usersList.innerHTML = '';
   if (firstSetupSection) firstSetupSection.style.display = 'none';
   if (loginRequiredSection) loginRequiredSection.style.display = 'none';
   if (createUserSection) createUserSection.style.display = 'none';
   if (accessDenied) accessDenied.style.display = 'none';
+  if (adminDashboard) adminDashboard.style.display = 'none';
+  if (permissionsMatrix) permissionsMatrix.style.display = 'none';
 
   const token = localStorage.getItem('jwt_token');
   const status = await loadSystemStatus();
@@ -3258,57 +3348,193 @@ async function loadUsers() {
 
   if (createUserSection) createUserSection.style.display = 'block';
 
-  try {
-    const response = await fetch('/api/users', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+  const isAdmin = currentUser?.role === 'admin';
+  const isSuperAdmin = currentUser?.role === 'super_admin';
 
-    if (!response.ok) {
+  try {
+    const data = await apiRequest('/api/users', { method: 'GET' });
+    if (!data.ok) {
       usersList.innerHTML = '<div style="padding:12px;color:#c00">Ошибка загрузки пользователей</div>';
       return;
     }
 
-    const data = await response.json();
-    allUsers = data.users || [];
+    allUsers = data.json.users || [];
     const currentUserData = getCurrentUserFromAPI();
 
-    if (allUsers.length === 0) {
+    // Admin видит только своих менеджеров
+    const visibleUsers = isAdmin ? allUsers.filter(u => u.role === 'manager') : allUsers;
+
+    // В форме создания: admin может создавать только менеджеров
+    const adminOpt = document.querySelector('.role-admin-option');
+    if (adminOpt) adminOpt.style.display = isAdmin ? 'none' : '';
+
+    // ── SuperAdmin Dashboard ──
+    if (isSuperAdmin && adminDashboard) {
+      const statsRes = await apiRequest('/api/users/admin-stats', { method: 'GET' });
+      const stats = statsRes.ok ? (statsRes.json.stats || []) : [];
+      if (stats.length) {
+        adminDashboard.style.display = 'block';
+        const fmtDate = ts => ts ? new Date(ts * 1000).toLocaleDateString('ru-RU') : '—';
+        adminDashboard.innerHTML = `
+          <div style="font-weight:600;color:#2d3a2e;margin-bottom:10px;font-size:12px">РАБОЧИЕ ПРОСТРАНСТВА АДМИНИСТРАТОРОВ</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:4px">
+            ${stats.map(a => `
+              <div style="background:#f5f8f5;border:1px solid #c8d8c8;border-radius:5px;padding:12px">
+                <div style="font-weight:600;color:#2d3a2e;font-size:13px;margin-bottom:6px">${a.name}</div>
+                <div style="font-size:11px;color:#666;margin-bottom:3px">@${a.login}</div>
+                <div style="display:flex;gap:12px;margin-top:8px">
+                  <div style="text-align:center">
+                    <div style="font-size:20px;font-weight:700;color:#3a4a3c">${a.projectCount}</div>
+                    <div style="font-size:10px;color:#888">проектов</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:20px;font-weight:700;color:#3a4a3c">${a.managerCount}</div>
+                    <div style="font-size:10px;color:#888">менеджеров</div>
+                  </div>
+                </div>
+                <div style="font-size:10px;color:#aaa;margin-top:6px">Последний вход: ${fmtDate(a.lastLoginAt)}</div>
+              </div>`).join('')}
+          </div>`;
+      }
+    }
+
+    // ── Users list ──
+    if (visibleUsers.length === 0) {
       usersList.innerHTML = '<div style="padding:12px;color:#999;text-align:center">Нет пользователей</div>';
     } else {
+      const roleLabel = r => r === 'super_admin' ? '⭐ Super Admin' : r === 'admin' ? '👤 Admin' : '📝 Manager';
+      const roleBg = r => r === 'super_admin' ? 'background:#f0ad4e;color:#fff' : r === 'admin' ? 'background:#5bc0de;color:#fff' : 'background:#d9edf7;color:#31708f';
       usersList.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 2fr 2fr 100px 80px;gap:1px;background:#e0e0e0">
+        <div style="display:grid;grid-template-columns:1fr 1fr 120px 90px 130px;gap:1px;background:#e0e0e0">
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ИМЯ</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ЛОГИН</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">РОЛЬ</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">СТАТУС</div>
-          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ДЕЙСТВИЕ</div>
-          ${allUsers.map((u, i) => `
-            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${u.name || '—'}</div>
-            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-family:monospace;font-size:11px">${u.login}</div>
-            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">
-              <span style="display:inline-block;padding:2px 6px;border-radius:2px;font-size:10px;font-weight:600;${u.role === 'super_admin' ? 'background:#f0ad4e;color:#fff' : u.role === 'admin' ? 'background:#5bc0de;color:#fff' : 'background:#d9edf7;color:#31708f'}">
-                ${u.role === 'super_admin' ? '⭐ Super Admin' : u.role === 'admin' ? '👤 Admin' : '📝 Manager'}
-              </span>
-            </div>
-            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-size:11px;color:#666">${u.status === 'active' ? '✅ Активен' : '❌ Неактивен'}</div>
-            <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${u.id !== currentUserData?.userId ? `<button class="btn-action" style="padding:2px 6px;font-size:10px;color:#c00;border-color:#fcc" onclick="deleteUser('${u.id}')">Удалить</button>` : '—'}</div>
-          `).join('')}
+          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ДЕЙСТВИЯ</div>
+          ${visibleUsers.map(u => {
+            const isSelf = u.id === currentUserData?.userId;
+            const canEdit = !isSelf && (isSuperAdmin || (isAdmin && u.role === 'manager'));
+            const actions = canEdit
+              ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openResetPasswordModal('${u.id}','${(u.name||u.login).replace(/'/g,'\\\'')}')" title="Сменить пароль">🔑</button>
+                 <button class="btn-action" style="padding:2px 7px;font-size:10px" onclick="deleteUser('${u.id}')">Удалить</button>`
+              : '—';
+            return `
+              <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${u.name || '—'}</div>
+              <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-family:monospace;font-size:11px">${u.login}</div>
+              <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">
+                <span style="display:inline-block;padding:2px 6px;border-radius:2px;font-size:10px;font-weight:600;${roleBg(u.role)}">${roleLabel(u.role)}</span>
+              </div>
+              <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-size:11px;color:#666">${u.status === 'active' ? '✅ Активен' : '❌ Неактивен'}</div>
+              <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${actions}</div>
+            `;
+          }).join('')}
         </div>
       `;
     }
 
+    // ── Admin selector in create form ──
     const adminSelect = document.getElementById('newUserAdminId');
     if (adminSelect) {
       const admins = allUsers.filter(u => u.role === 'admin');
       adminSelect.innerHTML = '<option value="">-- Выберите администратора --</option>' + admins.map(a => `<option value="${a.id}">${a.name} (${a.login})</option>`).join('');
     }
+
+    // ── Permissions matrix (super_admin only) ──
+    if (isSuperAdmin && permissionsMatrix) {
+      const matrixUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'manager');
+      if (matrixUsers.length) {
+        permissionsMatrix.style.display = 'block';
+        renderPermissionsMatrix(matrixUsers);
+      }
+    }
+
   } catch (error) {
     console.error('Error loading users:', error);
     usersList.innerHTML = '<div style="padding:12px;color:#c00">Ошибка: ' + error.message + '</div>';
+  }
+}
+
+const PERM_DEFS = [
+  { key: 'settings',       label: 'Настройки' },
+  { key: 'editSpecs',      label: 'Характеристики' },
+  { key: 'editEstimate',   label: 'Смета' },
+  { key: 'editPhotos',     label: 'Фото' },
+  { key: 'editProject',    label: 'Проект' },
+  { key: 'importExport',   label: 'Excel' }
+];
+
+function renderPermissionsMatrix(users) {
+  const el = document.getElementById('permissionsMatrix');
+  if (!el) return;
+
+  const rows = users.map(u => {
+    const p = u.permissions || {};
+    const cells = PERM_DEFS.map(d => {
+      const checked = p[d.key] !== false ? 'checked' : '';
+      return `<td style="text-align:center;padding:6px 4px">
+        <input type="checkbox" ${checked} data-uid="${u.id}" data-perm="${d.key}" onchange="onPermChange(this)" style="width:15px;height:15px;cursor:pointer;accent-color:#5a7a5c">
+      </td>`;
+    }).join('');
+    const roleLabel = u.role === 'admin' ? '👤 Admin' : '📝 Manager';
+    return `<tr style="border-bottom:1px solid #e8e8e8">
+      <td style="padding:7px 10px;font-size:12px;font-weight:500">${u.name || u.login}</td>
+      <td style="padding:7px 6px;font-size:10px;color:#888">${roleLabel}</td>
+      ${cells}
+      <td style="padding:6px 8px">
+        <button class="btn-action" style="padding:2px 8px;font-size:10px" onclick="savePermissions('${u.id}')">Сохранить</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="font-weight:600;color:#2d3a2e;margin-bottom:10px;font-size:12px">ПРАВА ДОСТУПА</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#3a4a3c;color:#fff">
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600">ПОЛЬЗОВАТЕЛЬ</th>
+            <th style="padding:8px 6px;text-align:left;font-size:11px;font-weight:600">РОЛЬ</th>
+            ${PERM_DEFS.map(d => `<th style="padding:8px 4px;text-align:center;font-size:11px;font-weight:600">${d.label}</th>`).join('')}
+            <th style="padding:8px 6px"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Pending permission changes: { userId: { permKey: bool } }
+var _pendingPerms = {};
+
+function onPermChange(checkbox) {
+  const uid = checkbox.dataset.uid;
+  const perm = checkbox.dataset.perm;
+  if (!_pendingPerms[uid]) _pendingPerms[uid] = {};
+  _pendingPerms[uid][perm] = checkbox.checked;
+}
+
+async function savePermissions(userId) {
+  // Build full permissions object for this user from current checkboxes
+  const perms = {};
+  document.querySelectorAll(`input[data-uid="${userId}"]`).forEach(cb => {
+    perms[cb.dataset.perm] = cb.checked;
+  });
+
+  const result = await apiRequest(`/api/users/${userId}/permissions`, {
+    method: 'PATCH',
+    body: JSON.stringify({ permissions: perms })
+  });
+
+  if (result.ok) {
+    // Update allUsers in memory
+    const u = allUsers.find(x => x.id === userId);
+    if (u) u.permissions = perms;
+    delete _pendingPerms[userId];
+    // Brief visual feedback
+    const btn = document.querySelector(`button[onclick="savePermissions('${userId}')"]`);
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = orig, 1200); }
+  } else {
+    alert('Ошибка сохранения прав: ' + (result.json?.error || 'неизвестная ошибка'));
   }
 }
 
@@ -3319,15 +3545,24 @@ async function checkFirstRun() {
     const status = await loadSystemStatus();
     if (!status.hasSuperAdmin) {
       overlay.style.display = 'flex';
-      document.getElementById('frName').focus();
+      const frLogin = document.getElementById('frLogin');
+      if (frLogin) frLogin.focus();
     }
   } catch (e) {}
 }
 
+function togglePasswordVisibility(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
+
 async function handleFirstRunSetup(event) {
   event.preventDefault();
-  const name = document.getElementById('frName').value.trim();
   const login = document.getElementById('frLogin').value.trim();
+  const name = login;
   const email = document.getElementById('frEmail').value.trim();
   const password = document.getElementById('frPassword').value;
   const errEl = document.getElementById('frError');
@@ -3421,69 +3656,93 @@ function updateRoleFields() {
   const role = document.getElementById('newUserRole').value;
   const adminSelectDiv = document.getElementById('adminSelectDiv');
   if (adminSelectDiv) {
-    adminSelectDiv.style.display = role === 'manager' ? 'block' : 'none';
+    // Admin can only create managers — selector hidden, auto-assigned to self
+    const isAdmin = currentUser?.role === 'admin';
+    adminSelectDiv.style.display = (!isAdmin && role === 'manager') ? 'block' : 'none';
   }
 }
 
 async function handleCreateUser(event) {
   event.preventDefault();
-  
+
   const name = document.getElementById('newUserName').value.trim();
   const login = document.getElementById('newUserLogin').value.trim();
-  const email = document.getElementById('newUserEmail').value.trim();
   const password = document.getElementById('newUserPassword').value;
   const role = document.getElementById('newUserRole').value;
-  const adminId = role === 'manager' ? document.getElementById('newUserAdminId').value : undefined;
+  // Admin auto-assigns manager to self; super_admin picks from selector
+  let adminId;
+  if (role === 'manager') {
+    adminId = currentUser?.role === 'admin'
+      ? (currentUser.id || currentUser.userId)
+      : document.getElementById('newUserAdminId').value;
+  }
 
   if (!name || !login || !password || !role) {
     alert('Заполните все обязательные поля (отмечены *)');
     return;
   }
-
   if (password.length < 6) {
     alert('Пароль должен быть минимум 6 символов');
     return;
   }
-
   if (role === 'manager' && !adminId) {
     alert('Для менеджера необходимо выбрать администратора');
     return;
   }
 
   try {
-    const token = localStorage.getItem('jwt_token');
-    const response = await fetch('/api/users', {
+    const result = await apiRequest('/api/users', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name,
-        login,
-        email: email || undefined,
-        password,
-        role,
-        adminId: adminId || undefined
-      })
+      body: JSON.stringify({ name, login, password, role, adminId: adminId || undefined })
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert('Ошибка: ' + (data.error || 'Не удалось создать пользователя'));
+    if (!result.ok) {
+      alert('Ошибка: ' + (result.json?.error || 'Не удалось создать пользователя'));
       return;
     }
 
-    alert('✅ Пользователь успешно создан');
     document.getElementById('createUserForm').reset();
     document.getElementById('adminSelectDiv').style.display = 'none';
     await loadUsers();
-
   } catch (error) {
-    console.error('Error creating user:', error);
     alert('Ошибка: ' + error.message);
   }
+}
+
+var _resetUserId = null;
+function openResetPasswordModal(userId, userName) {
+  _resetUserId = userId;
+  document.getElementById('resetUserLabel').textContent = userName;
+  document.getElementById('resetNewPassword').value = '';
+  document.getElementById('resetNewPassword').type = 'password';
+  document.getElementById('resetPwError').style.display = 'none';
+  const modal = document.getElementById('resetPasswordModal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('resetNewPassword').focus(), 50);
+}
+function closeResetPasswordModal() {
+  document.getElementById('resetPasswordModal').style.display = 'none';
+  _resetUserId = null;
+}
+async function confirmResetPassword() {
+  const pwd = document.getElementById('resetNewPassword').value;
+  const errEl = document.getElementById('resetPwError');
+  errEl.style.display = 'none';
+  if (pwd.length < 6) {
+    errEl.textContent = 'Минимум 6 символов';
+    errEl.style.display = 'block';
+    return;
+  }
+  const result = await apiRequest(`/api/users/${_resetUserId}/password`, {
+    method: 'POST',
+    body: JSON.stringify({ password: pwd })
+  });
+  if (!result.ok) {
+    errEl.textContent = result.json?.error || 'Ошибка при смене пароля';
+    errEl.style.display = 'block';
+    return;
+  }
+  closeResetPasswordModal();
 }
 
 async function deleteUser(userId) {
@@ -3578,7 +3837,12 @@ var ceOpenOptions  = {};
 function renderConfigEditor() {
   const p = currentProject();
   const ed = document.getElementById('configEditor');
+  if (!ed) return;
   ed.innerHTML = '';
+  if (!p) {
+    ed.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px">Нет активного проекта</div>';
+    return;
+  }
 
   (p.configData || []).forEach((grp, si) => {
     const last = (p.configData||[]).length - 1;

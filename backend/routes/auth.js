@@ -151,7 +151,8 @@ router.post('/login', asyncHandler(async (req, res) => {
         login: user.login,
         email: user.email,
         role: user.role,
-        adminId: user.admin_id
+        adminId: user.admin_id,
+        permissions: user.permissions ? JSON.parse(user.permissions) : null
       }
     });
 
@@ -201,7 +202,7 @@ router.get('/check', authMiddleware, asyncHandler(async (req, res) => {
   try {
     // Получаем данные пользователя
     const stmt = db.prepare(`
-      SELECT id, name, login, email, role, admin_id, status 
+      SELECT id, name, login, email, role, admin_id, status, permissions
       FROM users WHERE id = ? LIMIT 1
     `);
     const user = stmt.get(userId);
@@ -232,7 +233,8 @@ router.get('/check', authMiddleware, asyncHandler(async (req, res) => {
         email: user.email,
         role: user.role,
         adminId: user.admin_id,
-        status: user.status
+        status: user.status,
+        permissions: user.permissions ? JSON.parse(user.permissions) : null
       }
     });
 

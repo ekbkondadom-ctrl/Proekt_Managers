@@ -104,6 +104,7 @@ router.get('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       role: u.role,
       status: u.status,
       adminId: u.admin_id,
+      permissions: u.permissions ? JSON.parse(u.permissions) : null,
       createdAt: u.created_at,
       updatedAt: u.updated_at,
       lastLoginAt: u.last_login_at
@@ -148,15 +149,16 @@ router.get('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
  *   adminId: string (если role='manager', обязательно указать админа)
  * }
  */
-router.post('/', onlySuperAdmin, asyncHandler(async (req, res) => {
+router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
   const db = req.db;
-  const superAdminId = req.user.userId;
+  const creatorId = req.user.userId;
+  const creatorRole = req.user.role;
   const { name, login, email, password, role, adminId } = req.body;
   const ipAddress = req.ipAddress;
 
   try {
     // Валидация
-    if (!name || !login || !email || !password || !role) {
+    if (!name || !login || !password || !role) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields',
@@ -172,7 +174,21 @@ router.post('/', onlySuperAdmin, asyncHandler(async (req, res) => {
       });
     }
 
-    if (role === 'manager' && !adminId) {
+    // Admin can only create managers
+    if (creatorRole === 'admin' && role !== 'manager') {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin can only create managers',
+        code: 'FORBIDDEN'
+      });
+    }
+
+    // Determine adminId: admin auto-assigns to self
+    const resolvedAdminId = role === 'manager'
+      ? (creatorRole === 'admin' ? creatorId : adminId)
+      : null;
+
+    if (role === 'manager' && !resolvedAdminId) {
       return res.status(400).json({
         success: false,
         error: 'adminId is required for managers',
@@ -188,10 +204,10 @@ router.post('/', onlySuperAdmin, asyncHandler(async (req, res) => {
       });
     }
 
-    if (password.length < 8) {
+    if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        error: 'Password must be at least 8 characters',
+        error: 'Password must be at least 6 characters',
         code: 'WEAK_PASSWORD'
       });
     }
@@ -206,10 +222,10 @@ router.post('/', onlySuperAdmin, asyncHandler(async (req, res) => {
       });
     }
 
-    // Проверяем существует ли админ (если указан)
-    if (adminId) {
+    // Проверяем существует ли указанный админ
+    if (resolvedAdminId && creatorRole === 'super_admin') {
       const adminCheckStmt = db.prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
-      if (!adminCheckStmt.get(adminId)) {
+      if (!adminCheckStmt.get(resolvedAdminId)) {
         return res.status(400).json({
           success: false,
           error: 'Admin with specified ID not found',
@@ -236,21 +252,21 @@ router.post('/', onlySuperAdmin, asyncHandler(async (req, res) => {
       userId,
       name,
       login,
-      email,
+      email || null,
       passwordHash,
       role,
       'active',
-      role === 'manager' ? adminId : null,
+      resolvedAdminId,
       now,
       now,
-      superAdminId,
-      superAdminId
+      creatorId,
+      creatorId
     );
 
     // Логируем создание пользователя
     logAction(db, {
-      userId: superAdminId,
-      userRole: 'super_admin',
+      userId: creatorId,
+      userRole: creatorRole,
       action: 'user_created',
       description: `Created new user: ${name} (${login}) with role: ${role}`,
       targetType: 'user',
@@ -266,16 +282,47 @@ router.post('/', onlySuperAdmin, asyncHandler(async (req, res) => {
         id: userId,
         name: name,
         login: login,
-        email: email,
+        email: email || null,
         role: role,
         status: 'active',
-        adminId: role === 'manager' ? adminId : null,
+        adminId: resolvedAdminId,
         createdAt: now
       }
     });
 
   } catch (err) {
     logConsole('error', 'Create user error', { error: err.message });
+    throw err;
+  }
+}));
+
+/**
+ * GET /api/users/admin-stats
+ * Статистика по каждому администратору (только супер-админ)
+ * ВАЖНО: должен быть до /:id чтобы express не принял 'admin-stats' как id
+ */
+router.get('/admin-stats', onlySuperAdmin, asyncHandler(async (req, res) => {
+  const db = req.db;
+
+  try {
+    const admins = db.prepare("SELECT id, name, login, last_login_at FROM users WHERE role = 'admin' AND status = 'active'").all();
+
+    const stats = admins.map(admin => {
+      const projectCount = db.prepare('SELECT COUNT(*) as cnt FROM projects WHERE owner_admin_id = ?').get(admin.id)?.cnt || 0;
+      const managerCount = db.prepare("SELECT COUNT(*) as cnt FROM users WHERE admin_id = ? AND role = 'manager' AND status = 'active'").get(admin.id)?.cnt || 0;
+      return {
+        id: admin.id,
+        name: admin.name,
+        login: admin.login,
+        lastLoginAt: admin.last_login_at,
+        projectCount,
+        managerCount
+      };
+    });
+
+    return res.json({ success: true, stats });
+  } catch (err) {
+    logConsole('error', 'Admin stats error', { error: err.message });
     throw err;
   }
 }));
@@ -412,9 +459,10 @@ router.put('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
  * DELETE /api/users/:id
  * Удалить пользователя (только супер-админ)
  */
-router.delete('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
+router.delete('/:id', adminOrSuperAdmin, asyncHandler(async (req, res) => {
   const db = req.db;
-  const superAdminId = req.user.userId;
+  const requesterId = req.user.userId;
+  const requesterRole = req.user.role;
   const userId = req.params.id;
   const ipAddress = req.ipAddress;
 
@@ -441,12 +489,23 @@ router.delete('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
     }
 
     // Нельзя удалить самого себя
-    if (user.id === superAdminId) {
+    if (user.id === requesterId) {
       return res.status(403).json({
         success: false,
         error: 'Cannot delete yourself',
         code: 'FORBIDDEN'
       });
+    }
+
+    // Admin can only delete their own managers
+    if (requesterRole === 'admin') {
+      if (user.role !== 'manager' || user.admin_id !== requesterId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin can only delete own managers',
+          code: 'FORBIDDEN'
+        });
+      }
     }
 
     // Удаляем пользователя
@@ -455,8 +514,8 @@ router.delete('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
 
     // Логируем удаление
     logAction(db, {
-      userId: superAdminId,
-      userRole: 'super_admin',
+      userId: requesterId,
+      userRole: requesterRole,
       action: 'user_deleted',
       description: `Deleted user: ${user.name} (${user.login})`,
       targetType: 'user',
@@ -481,18 +540,19 @@ router.delete('/:id', onlySuperAdmin, asyncHandler(async (req, res) => {
  * POST /api/users/:id/password
  * Установить новый пароль (только супер-админ)
  */
-router.post('/:id/password', onlySuperAdmin, asyncHandler(async (req, res) => {
+router.post('/:id/password', adminOrSuperAdmin, asyncHandler(async (req, res) => {
   const db = req.db;
-  const superAdminId = req.user.userId;
+  const requesterId = req.user.userId;
+  const requesterRole = req.user.role;
   const userId = req.params.id;
-  const { newPassword } = req.body;
+  const newPassword = req.body.password || req.body.newPassword;
   const ipAddress = req.ipAddress;
 
   try {
-    if (!newPassword || newPassword.length < 8) {
+    if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        error: 'Password must be at least 8 characters',
+        error: 'Password must be at least 6 characters',
         code: 'WEAK_PASSWORD'
       });
     }
@@ -509,6 +569,17 @@ router.post('/:id/password', onlySuperAdmin, asyncHandler(async (req, res) => {
       });
     }
 
+    // Admin can only reset passwords for their own managers
+    if (requesterRole === 'admin') {
+      if (user.role !== 'manager' || user.admin_id !== requesterId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin can only reset passwords for own managers',
+          code: 'FORBIDDEN'
+        });
+      }
+    }
+
     // Хешируем новый пароль
     const passwordHash = await hashPassword(newPassword);
 
@@ -519,12 +590,12 @@ router.post('/:id/password', onlySuperAdmin, asyncHandler(async (req, res) => {
     `);
 
     const now = Math.floor(Date.now() / 1000);
-    updateStmt.run(passwordHash, now, superAdminId, userId);
+    updateStmt.run(passwordHash, now, requesterId, userId);
 
     // Логируем смену пароля
     logAction(db, {
-      userId: superAdminId,
-      userRole: 'super_admin',
+      userId: requesterId,
+      userRole: requesterRole,
       action: 'password_reset',
       description: `Password reset for user: ${user.login}`,
       targetType: 'user',
@@ -544,5 +615,46 @@ router.post('/:id/password', onlySuperAdmin, asyncHandler(async (req, res) => {
     throw err;
   }
 }));
+
+/**
+ * PATCH /api/users/:id/permissions
+ * Установить права доступа для пользователя (только супер-админ)
+ */
+router.patch('/:id/permissions', onlySuperAdmin, asyncHandler(async (req, res) => {
+  const db = req.db;
+  const requesterId = req.user.userId;
+  const userId = req.params.id;
+  const { permissions } = req.body;
+  const ipAddress = req.ipAddress;
+
+  try {
+    const stmt = db.prepare('SELECT * FROM users WHERE id = ? LIMIT 1');
+    const user = stmt.get(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found', code: 'USER_NOT_FOUND' });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const updateStmt = db.prepare('UPDATE users SET permissions = ?, updated_at = ?, updated_by = ? WHERE id = ?');
+    updateStmt.run(JSON.stringify(permissions), now, requesterId, userId);
+
+    logAction(db, {
+      userId: requesterId,
+      userRole: 'super_admin',
+      action: 'permissions_updated',
+      description: `Permissions updated for user: ${user.login}`,
+      targetType: 'user',
+      targetId: userId,
+      ipAddress: ipAddress
+    });
+
+    return res.json({ success: true, message: 'Permissions updated' });
+  } catch (err) {
+    logConsole('error', 'Permissions update error', { error: err.message });
+    throw err;
+  }
+}));
+
 
 module.exports = router;

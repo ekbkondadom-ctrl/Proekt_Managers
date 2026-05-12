@@ -3647,37 +3647,6 @@ async function loadUsers() {
     const adminOpt = document.querySelector('.role-admin-option');
     if (adminOpt) adminOpt.style.display = isAdmin ? 'none' : '';
 
-    // ── SuperAdmin Dashboard ──
-    if (isSuperAdmin && adminDashboard) {
-      const statsRes = await apiRequest('/api/users/admin-stats', { method: 'GET' });
-      const stats = statsRes.ok ? (statsRes.json.stats || []) : [];
-      if (stats.length) {
-        adminDashboard.style.display = 'block';
-        const fmtDate = ts => ts ? new Date(ts * 1000).toLocaleDateString('ru-RU') : '—';
-        adminDashboard.innerHTML = `
-          <div style="font-weight:600;color:#2d3a2e;margin-bottom:10px;font-size:12px">РАБОЧИЕ ПРОСТРАНСТВА АДМИНИСТРАТОРОВ</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:4px">
-            ${stats.map(a => `
-              <div style="background:#f5f8f5;border:1px solid #c8d8c8;border-radius:5px;padding:12px">
-                <div style="font-weight:600;color:#2d3a2e;font-size:13px;margin-bottom:6px">${a.name}</div>
-                <div style="font-size:11px;color:#666;margin-bottom:3px">@${a.login}</div>
-                <div style="display:flex;gap:12px;margin-top:8px">
-                  <div style="text-align:center">
-                    <div style="font-size:20px;font-weight:700;color:#3a4a3c">${a.projectCount}</div>
-                    <div style="font-size:10px;color:#888">проектов</div>
-                  </div>
-                  <div style="text-align:center">
-                    <div style="font-size:20px;font-weight:700;color:#3a4a3c">${a.managerCount}</div>
-                    <div style="font-size:10px;color:#888">менеджеров</div>
-                  </div>
-                </div>
-                ${a.projectNames && a.projectNames.length ? `<div style="margin-top:8px;border-top:1px solid #ddd;padding-top:6px">${a.projectNames.map(n => `<div style="font-size:10px;color:#555;padding:1px 0">• ${n}</div>`).join('')}</div>` : ''}
-                <div style="font-size:10px;color:#aaa;margin-top:6px">Последний вход: ${fmtDate(a.lastLoginAt)}</div>
-              </div>`).join('')}
-          </div>`;
-      }
-    }
-
     // ── Users list ──
     if (visibleUsers.length === 0) {
       usersList.innerHTML = '<div style="padding:12px;color:#999;text-align:center">Нет пользователей</div>';
@@ -3686,9 +3655,9 @@ async function loadUsers() {
       const roleBg = r => r === 'super_admin' ? 'background:#f0ad4e;color:#fff' : r === 'admin' ? 'background:#5bc0de;color:#fff' : 'background:#d9edf7;color:#31708f';
       const pwdCol = isSuperAdmin ? `<div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ПАРОЛЬ</div>` : '';
       usersList.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr 120px 90px${isSuperAdmin ? ' 120px' : ''} 190px;gap:1px;background:#e0e0e0">
-          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ИМЯ</div>
+        <div style="display:grid;grid-template-columns:1fr 110px 120px 90px${isSuperAdmin ? ' 120px' : ''} 130px;gap:1px;background:#e0e0e0">
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ЛОГИН</div>
+          <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ПРОЕКТЫ</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">РОЛЬ</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">СТАТУС</div>
           ${pwdCol}
@@ -3697,14 +3666,16 @@ async function loadUsers() {
             const isSelf = u.id === currentUserData?.userId;
             const canEdit = isSuperAdmin || (isAdmin && !isSelf && u.role === 'manager');
             const canDelete = canEdit && u.role !== 'super_admin';
-            const canManageProjects = canEdit && u.role === 'manager';
+            const canManageProjects = canEdit && (u.role === 'manager' || u.role === 'admin');
             const escapedName = (u.name||u.login).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             const escapedLogin = u.login.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             const actions = canEdit
               ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openEditUserModal('${u.id}','${escapedName}','${escapedLogin}','${u.role}','${u.status}')" title="Редактировать">✏️</button>
-                 ${canManageProjects ? `<button class="btn-action" style="padding:2px 8px;font-size:10px;margin-right:4px;background:#e8f0e8;border-color:#5a8a5a;color:#2d5a2d;font-weight:600" onclick="openUserProjectsModal('${u.id}','${escapedName}')" title="Управление проектами пользователя">📁 Проекты</button>` : ''}
                  ${canDelete ? `<button class="btn-action" style="padding:2px 7px;font-size:10px" onclick="deleteUser('${u.id}')">Удалить</button>` : ''}`
               : '—';
+            const projCell = canManageProjects
+              ? `<button class="btn-action" style="padding:3px 8px;font-size:11px;background:#e8f0e8;border-color:#5a8a5a;color:#2d5a2d;font-weight:600;width:100%;text-align:center" onclick="openUserProjectsModal('${u.id}','${escapedName}')" title="Управление проектами">📁 Проекты</button>`
+              : '<span style="color:#ccc;font-size:11px">—</span>';
             const pwdCell = isSuperAdmin
               ? `<div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-size:11px">
                    <span id="pwdDisplay_${u.id}" style="font-family:monospace;letter-spacing:2px">••••••</span>
@@ -3712,8 +3683,8 @@ async function loadUsers() {
                  </div>`
               : '';
             return `
-              <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">${u.name || '—'}</div>
               <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0;font-family:monospace;font-size:11px">${u.login}</div>
+              <div style="padding:6px 8px;background:#fff;border-bottom:1px solid #e0e0e0">${projCell}</div>
               <div style="padding:8px;background:#fff;border-bottom:1px solid #e0e0e0">
                 <span style="display:inline-block;padding:2px 6px;border-radius:2px;font-size:10px;font-weight:600;${roleBg(u.role)}">${roleLabel(u.role)}</span>
               </div>
@@ -4035,26 +4006,29 @@ var _uprAllowedIds = [];
 async function openUserProjectsModal(userId, userName) {
   _uprUserId = userId;
   const user = allUsers.find(u => u.id === userId);
-  _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : projects.map(p => p.id);
+  _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : [];
   document.getElementById('uprModalName').textContent = userName;
   document.getElementById('userProjectsModal').style.display = 'flex';
 
   const listEl = document.getElementById('uprProjectsList');
   listEl.innerHTML = '<div style="padding:12px;color:#888;text-align:center">Загрузка...</div>';
 
-  // Если проектов нет в памяти — загружаем с бэкенда
-  let projList = projects;
-  if (!projList.length && localStorage.getItem('jwt_token')) {
-    const res = await apiRequest('/api/projects', { method: 'GET' });
+  // For admins: fetch their own projects by adminId; for managers: fetch all accessible projects
+  let projList = [];
+  if (localStorage.getItem('jwt_token')) {
+    const isAdminTarget = user?.role === 'admin';
+    const url = isAdminTarget ? `/api/projects?adminId=${userId}` : '/api/projects';
+    const res = await apiRequest(url, { method: 'GET' });
     if (res.ok && res.json.success) projList = res.json.projects || [];
   }
+  if (!projList.length) projList = projects;
 
   if (!projList.length) {
     listEl.innerHTML = '<div style="padding:12px;color:#888;text-align:center">Нет доступных проектов</div>';
     return;
   }
 
-  // Если allowedProjectIds не задан — по умолчанию все проекты
+  // If allowedProjectIds not set — all projects checked by default
   if (!user?.allowedProjectIds) _uprAllowedIds = projList.map(p => p.id);
 
   listEl.innerHTML = projList.map(p =>
@@ -4078,9 +4052,9 @@ function uprToggle(projectId, checked) {
 
 async function saveUserProjects() {
   if (!_uprUserId) return;
-  const result = await apiRequest(`/api/users/${_uprUserId}/projects`, {
+  const result = await apiRequest(`/api/users/${_uprUserId}`, {
     method: 'PUT',
-    body: JSON.stringify({ projectIds: _uprAllowedIds })
+    body: JSON.stringify({ allowedProjectIds: _uprAllowedIds })
   });
   if (result.ok && result.json.success) {
     const u = allUsers.find(u => u.id === _uprUserId);

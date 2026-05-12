@@ -40,9 +40,16 @@ router.get('/', anyRole, asyncHandler(async (req, res) => {
       query += ' AND owner_admin_id = ?';
       params.push(adminId);
     } else if (user.role === 'admin') {
-      // Админ видит только свои проекты
-      query += ' AND owner_admin_id = ?';
-      params.push(user.userId);
+      const userRow = db.prepare('SELECT allowed_project_ids FROM users WHERE id = ? LIMIT 1').get(user.userId);
+      const allowedIds = userRow?.allowed_project_ids ? JSON.parse(userRow.allowed_project_ids) : null;
+      if (allowedIds && allowedIds.length > 0) {
+        const placeholders = allowedIds.map(() => '?').join(',');
+        query += ` AND owner_admin_id = ? AND id IN (${placeholders})`;
+        params.push(user.userId, ...allowedIds);
+      } else {
+        query += ' AND owner_admin_id = ?';
+        params.push(user.userId);
+      }
     } else if (user.role === 'manager') {
       const userRow = db.prepare('SELECT allowed_project_ids FROM users WHERE id = ? LIMIT 1').get(user.userId);
       const allowedIds = userRow?.allowed_project_ids ? JSON.parse(userRow.allowed_project_ids) : null;

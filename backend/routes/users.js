@@ -475,6 +475,12 @@ router.put('/:id', adminOrSuperAdmin, asyncHandler(async (req, res) => {
         now, superAdminId, userId);
     }
 
+    // Обновляем список разрешённых проектов (если передан)
+    if (req.body.allowedProjectIds !== undefined) {
+      db.prepare('UPDATE users SET allowed_project_ids = ? WHERE id = ?')
+        .run(JSON.stringify(Array.isArray(req.body.allowedProjectIds) ? req.body.allowedProjectIds : []), userId);
+    }
+
     // Логируем изменение
     const changes = [];
     if (name && name !== user.name) changes.push(`name: ${user.name} → ${name}`);

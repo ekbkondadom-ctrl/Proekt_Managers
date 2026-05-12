@@ -433,6 +433,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
 <!-- TOP BAR -->
 <div class="topbar">
   <div class="topbar-logo">🌲 КОНДА</div>
+  <select id="projQuickSelect" onchange="switchProject(parseInt(this.value))" style="background:#3a4a3c;color:#ddd;border:1px solid rgba(200,132,58,0.4);border-radius:3px;padding:3px 6px;font-size:12px;cursor:pointer;max-width:160px;margin-right:8px;flex-shrink:0">
+  </select>
   <div class="projects-strip-wrap">
     <button class="proj-scroll-btn" id="projScrollLeft" onclick="scrollProjects(-1)">&#8249;</button>
     <div class="projects-strip" id="projectsStrip">
@@ -837,6 +839,18 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
           <div style="display:flex;gap:8px;margin-top:16px">
             <button onclick="confirmEditUser()" style="flex:1;background:#3a4a3c;color:#fff;border:none;border-radius:4px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">Сохранить</button>
             <button onclick="closeEditUserModal()" style="flex:1;background:#f5f5f5;color:#555;border:1px solid #ccc;border-radius:4px;padding:9px;font-size:13px;cursor:pointer">Отмена</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Модалка проектов пользователя -->
+      <div id="userProjectsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:8px;padding:24px;width:380px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+          <div style="font-weight:700;font-size:15px;color:#2d3a2e;margin-bottom:14px">📁 Проекты пользователя: <span id="uprModalName"></span></div>
+          <div id="uprProjectsList" style="margin-bottom:16px"></div>
+          <div style="display:flex;gap:8px">
+            <button onclick="saveUserProjects()" style="flex:1;background:#3a4a3c;color:#fff;border:none;border-radius:4px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">Сохранить</button>
+            <button onclick="closeUserProjectsModal()" style="flex:1;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:9px;font-size:13px;cursor:pointer">Отмена</button>
           </div>
         </div>
       </div>
@@ -1626,6 +1640,15 @@ function renderProjectButtons() {
     strip.appendChild(btn);
   });
   setTimeout(updateScrollArrows, 50);
+  updateProjDropdown();
+}
+
+function updateProjDropdown() {
+  const sel = document.getElementById('projQuickSelect');
+  if (!sel) return;
+  sel.innerHTML = projects.map((p, i) =>
+    `<option value="${i}" ${i === currentProjIdx ? 'selected' : ''}>${p.name || 'Проект'}</option>`
+  ).join('');
 }
 
 function scrollProjects(dir) {
@@ -1646,6 +1669,7 @@ function updateScrollArrows() {
 }
 
 function switchProject(idx) {
+  updateProjDropdown();
   currentProjIdx = idx;
   // Сбрасываем индексы слайдов, чтобы новая вкладка показывала свои фото с первого
   slideIdx = 0;
@@ -3639,10 +3663,12 @@ async function loadUsers() {
             const isSelf = u.id === currentUserData?.userId;
             const canEdit = isSuperAdmin || (isAdmin && !isSelf && u.role === 'manager');
             const canDelete = canEdit && u.role !== 'super_admin';
+            const canManageProjects = canEdit && u.role === 'manager';
             const escapedName = (u.name||u.login).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             const escapedLogin = u.login.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             const actions = canEdit
               ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openEditUserModal('${u.id}','${escapedName}','${escapedLogin}','${u.role}','${u.status}')" title="Редактировать">✏️</button>
+                 ${canManageProjects ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openUserProjectsModal('${u.id}','${escapedName}')" title="Проекты">📁</button>` : ''}
                  ${canDelete ? `<button class="btn-action" style="padding:2px 7px;font-size:10px" onclick="deleteUser('${u.id}')">Удалить</button>` : ''}`
               : '—';
             const pwdCell = isSuperAdmin
@@ -3966,6 +3992,50 @@ async function handleCreateUser(event) {
     await loadUsers();
   } catch (error) {
     alert('Ошибка: ' + error.message);
+  }
+}
+
+var _uprUserId = null;
+var _uprAllowedIds = [];
+
+function openUserProjectsModal(userId, userName) {
+  _uprUserId = userId;
+  const user = allUsers.find(u => u.id === userId);
+  _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : projects.map(p => p.id);
+  document.getElementById('uprModalName').textContent = userName;
+  const listEl = document.getElementById('uprProjectsList');
+  listEl.innerHTML = projects.map(p =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #f0f0f0;cursor:pointer">
+      <input type="checkbox" value="${p.id}" ${_uprAllowedIds.includes(p.id) ? 'checked' : ''}
+        onchange="uprToggle('${p.id}',this.checked)" style="accent-color:#3a4a3c;width:14px;height:14px">
+      <span style="font-size:13px">${p.name || 'Проект'}</span>
+    </label>`
+  ).join('');
+  document.getElementById('userProjectsModal').style.display = 'flex';
+}
+
+function closeUserProjectsModal() {
+  document.getElementById('userProjectsModal').style.display = 'none';
+  _uprUserId = null;
+}
+
+function uprToggle(projectId, checked) {
+  if (checked) { if (!_uprAllowedIds.includes(projectId)) _uprAllowedIds.push(projectId); }
+  else { _uprAllowedIds = _uprAllowedIds.filter(id => id !== projectId); }
+}
+
+async function saveUserProjects() {
+  if (!_uprUserId) return;
+  const result = await apiRequest(`/api/users/${_uprUserId}/projects`, {
+    method: 'PUT',
+    body: JSON.stringify({ projectIds: _uprAllowedIds })
+  });
+  if (result.ok && result.json.success) {
+    const u = allUsers.find(u => u.id === _uprUserId);
+    if (u) u.allowedProjectIds = [..._uprAllowedIds];
+    closeUserProjectsModal();
+  } else {
+    alert('Ошибка сохранения: ' + (result.json?.error || 'неизвестная ошибка'));
   }
 }
 

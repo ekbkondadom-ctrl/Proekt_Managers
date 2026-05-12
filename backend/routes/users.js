@@ -106,6 +106,7 @@ router.get('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       adminId: u.admin_id,
       permissions: u.permissions ? JSON.parse(u.permissions) : null,
       plainPassword: requestingUser.role === 'super_admin' ? (u.plain_password || null) : undefined,
+      allowedProjectIds: u.allowed_project_ids ? JSON.parse(u.allowed_project_ids) : null,
       createdAt: u.created_at,
       updatedAt: u.updated_at,
       lastLoginAt: u.last_login_at
@@ -264,6 +265,14 @@ router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       creatorId,
       creatorId
     );
+
+    // Auto-assign admin's projects to new manager
+    if (role === 'manager' && resolvedAdminId) {
+      const adminProjects = db.prepare('SELECT id FROM projects WHERE owner_admin_id = ?').all(resolvedAdminId);
+      const projectIds = adminProjects.map(p => p.id);
+      db.prepare('UPDATE users SET allowed_project_ids = ? WHERE id = ?')
+        .run(JSON.stringify(projectIds), userId);
+    }
 
     // Логируем создание пользователя
     logAction(db, {
@@ -698,5 +707,32 @@ router.patch('/:id/permissions', onlySuperAdmin, asyncHandler(async (req, res) =
   }
 }));
 
+
+/**
+ * PUT /api/users/:id/projects
+ * Обновить список проектов пользователя
+ */
+router.put('/:id/projects', adminOrSuperAdmin, asyncHandler(async (req, res) => {
+  const db = req.db;
+  const user = req.user;
+  const targetUserId = req.params.id;
+  const { projectIds } = req.body;
+
+  const targetUser = db.prepare('SELECT * FROM users WHERE id = ? LIMIT 1').get(targetUserId);
+  if (!targetUser) {
+    return res.status(404).json({ success: false, error: 'User not found', code: 'NOT_FOUND' });
+  }
+
+  if (user.role === 'admin' && targetUser.admin_id !== user.userId) {
+    return res.status(403).json({ success: false, error: 'Access denied', code: 'FORBIDDEN' });
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare('UPDATE users SET allowed_project_ids = ?, updated_at = ? WHERE id = ?')
+    .run(JSON.stringify(Array.isArray(projectIds) ? projectIds : []), now, targetUserId);
+
+  logConsole('info', 'User projects updated', { targetUserId, count: (projectIds||[]).length });
+  return res.json({ success: true, message: 'Projects updated' });
+}));
 
 module.exports = router;

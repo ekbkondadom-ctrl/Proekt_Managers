@@ -1271,7 +1271,7 @@ function updateAuthUI() {
   } else {
     if (status) status.style.display = 'none';
     if (btn) btn.style.display = 'none';
-    if (btnSettings) btnSettings.style.display = '';
+    if (btnSettings) btnSettings.style.display = 'none'; // скрыть Настройки без авторизации
   }
 }
 
@@ -1413,6 +1413,29 @@ async function logout() {
   apiRequest('/api/auth/logout', { method: 'POST' }).catch(() => {});
 }
 
+// Убирает дубли проектов с одинаковым именем — оставляет синхронизированную
+// (backend) версию. Вызывать после любого merge-операции с projects[].
+function deduplicateProjects() {
+  const seen = new Map(); // key: trimmed lowercase name → best index
+  projects.forEach((p, i) => {
+    const key = (p.name || '').trim().toLowerCase();
+    if (!seen.has(key)) {
+      seen.set(key, i);
+    } else {
+      const prevIdx = seen.get(key);
+      const prev = projects[prevIdx];
+      // Предпочитаем синхронизированный вариант; среди синхронизированных — свежее
+      const preferNew = (!prev._synced && p._synced) ||
+        (prev._synced && p._synced && (p.updated_at || 0) > (prev.updated_at || 0));
+      if (preferNew) seen.set(key, i);
+    }
+  });
+  if (seen.size < projects.length) {
+    const keepIndices = new Set(seen.values());
+    projects = projects.filter((_, i) => keepIndices.has(i));
+  }
+}
+
 async function loadBackendProjects() {
   if (!localStorage.getItem('jwt_token')) return false;
 
@@ -1435,7 +1458,13 @@ async function loadBackendProjects() {
     : [];
 
   if (backendProjects.length > 0 || localProjects.length > 0) {
-    projects = [...backendProjects, ...localProjects];
+    // Добавляем только те локальные проекты, имя которых НЕ совпадает с бэкендом
+    // (это предотвращает дублирование: если проект уже есть на бэкенде, не добавляем ещё раз)
+    const mergedLocal = localProjects.filter(lp =>
+      !backendProjects.some(bp => (bp.name||'').trim() === (lp.name||'').trim())
+    );
+    projects = [...backendProjects, ...mergedLocal];
+    deduplicateProjects(); // финальная защита от дублей по имени
     currentProjIdx = 0;
     saveState();
     for (const project of projects.filter(p => !p._synced)) {
@@ -1577,8 +1606,12 @@ async function pollBackendForChanges() {
 
   // Reload: preserve current project selection by id
   const savedId = projects[currentProjIdx]?.id;
-  const unsyncedLocal = projects.filter(p => !p._synced);
-  projects = [...bp.map(normalizeProjectForClient), ...unsyncedLocal];
+  const backendNorm = bp.map(normalizeProjectForClient);
+  const unsyncedLocal = projects.filter(p =>
+    !p._synced && !backendNorm.some(b => (b.name||'').trim() === (p.name||'').trim())
+  );
+  projects = [...backendNorm, ...unsyncedLocal];
+  deduplicateProjects();
   const newIdx = projects.findIndex(p => p.id === savedId);
   currentProjIdx = newIdx >= 0 ? newIdx : 0;
 
@@ -3267,9 +3300,10 @@ importExcel = function(input) {
         const bpRes = await apiRequest('/api/projects', { method: 'GET' });
         if (bpRes.ok && bpRes.json.success && Array.isArray(bpRes.json.projects)) {
           bpRes.json.projects.forEach(bp => {
-            if (!projects.find(p => p.id === bp.id)) {
-              projects.push(normalizeProjectForClient(bp));
-            }
+            const alreadyIn = projects.find(p =>
+              p.id === bp.id || (p.name||'').trim() === (bp.name||'').trim()
+            );
+            if (!alreadyIn) projects.push(normalizeProjectForClient(bp));
           });
         }
       }
@@ -3652,7 +3686,7 @@ async function loadUsers() {
       const roleBg = r => r === 'super_admin' ? 'background:#f0ad4e;color:#fff' : r === 'admin' ? 'background:#5bc0de;color:#fff' : 'background:#d9edf7;color:#31708f';
       const pwdCol = isSuperAdmin ? `<div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ПАРОЛЬ</div>` : '';
       usersList.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr 120px 90px${isSuperAdmin ? ' 120px' : ''} 130px;gap:1px;background:#e0e0e0">
+        <div style="display:grid;grid-template-columns:1fr 1fr 120px 90px${isSuperAdmin ? ' 120px' : ''} 190px;gap:1px;background:#e0e0e0">
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ИМЯ</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">ЛОГИН</div>
           <div style="padding:8px;background:#3a4a3c;color:#fff;font-size:11px;font-weight:600">РОЛЬ</div>
@@ -3668,7 +3702,7 @@ async function loadUsers() {
             const escapedLogin = u.login.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             const actions = canEdit
               ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openEditUserModal('${u.id}','${escapedName}','${escapedLogin}','${u.role}','${u.status}')" title="Редактировать">✏️</button>
-                 ${canManageProjects ? `<button class="btn-action" style="padding:2px 7px;font-size:10px;margin-right:4px" onclick="openUserProjectsModal('${u.id}','${escapedName}')" title="Проекты">📁</button>` : ''}
+                 ${canManageProjects ? `<button class="btn-action" style="padding:2px 8px;font-size:10px;margin-right:4px;background:#e8f0e8;border-color:#5a8a5a;color:#2d5a2d;font-weight:600" onclick="openUserProjectsModal('${u.id}','${escapedName}')" title="Управление проектами пользователя">📁 Проекты</button>` : ''}
                  ${canDelete ? `<button class="btn-action" style="padding:2px 7px;font-size:10px" onclick="deleteUser('${u.id}')">Удалить</button>` : ''}`
               : '—';
             const pwdCell = isSuperAdmin
@@ -3998,20 +4032,38 @@ async function handleCreateUser(event) {
 var _uprUserId = null;
 var _uprAllowedIds = [];
 
-function openUserProjectsModal(userId, userName) {
+async function openUserProjectsModal(userId, userName) {
   _uprUserId = userId;
   const user = allUsers.find(u => u.id === userId);
   _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : projects.map(p => p.id);
   document.getElementById('uprModalName').textContent = userName;
+  document.getElementById('userProjectsModal').style.display = 'flex';
+
   const listEl = document.getElementById('uprProjectsList');
-  listEl.innerHTML = projects.map(p =>
+  listEl.innerHTML = '<div style="padding:12px;color:#888;text-align:center">Загрузка...</div>';
+
+  // Если проектов нет в памяти — загружаем с бэкенда
+  let projList = projects;
+  if (!projList.length && localStorage.getItem('jwt_token')) {
+    const res = await apiRequest('/api/projects', { method: 'GET' });
+    if (res.ok && res.json.success) projList = res.json.projects || [];
+  }
+
+  if (!projList.length) {
+    listEl.innerHTML = '<div style="padding:12px;color:#888;text-align:center">Нет доступных проектов</div>';
+    return;
+  }
+
+  // Если allowedProjectIds не задан — по умолчанию все проекты
+  if (!user?.allowedProjectIds) _uprAllowedIds = projList.map(p => p.id);
+
+  listEl.innerHTML = projList.map(p =>
     `<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #f0f0f0;cursor:pointer">
       <input type="checkbox" value="${p.id}" ${_uprAllowedIds.includes(p.id) ? 'checked' : ''}
         onchange="uprToggle('${p.id}',this.checked)" style="accent-color:#3a4a3c;width:14px;height:14px">
       <span style="font-size:13px">${p.name || 'Проект'}</span>
     </label>`
   ).join('');
-  document.getElementById('userProjectsModal').style.display = 'flex';
 }
 
 function closeUserProjectsModal() {
@@ -4187,8 +4239,10 @@ async function init() {
     }
   }
 
+  deduplicateProjects(); // защита от дублей, накопленных в прошлых сессиях
+
   // Ensure default images if empty
-  if (!projects[0].images?.length) projects[0].images = [...DEFAULT_IMAGES];
+  if (!projects[0]?.images?.length) projects[0].images = [...DEFAULT_IMAGES];
   // Миграция planImage -> planImages
   projects.forEach(p => {
     if (p.planImage && !p.planImages) {
@@ -4207,12 +4261,13 @@ async function init() {
 
   // Show login or first-run based on auth state
   if (!currentUser) {
+    showLoginOverlay(); // немедленно — до любого async, чтобы UI был закрыт
     const status = await loadSystemStatus();
     if (!status.hasSuperAdmin) {
+      closeLoginModal();
       checkFirstRun();
-    } else {
-      showLoginOverlay();
     }
+    // overlay остаётся открытым для обычного входа
   }
 
   // Первая версия при первом запуске

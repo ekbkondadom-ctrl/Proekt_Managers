@@ -737,6 +737,8 @@ router.patch('/:id/permissions', onlySuperAdmin, asyncHandler(async (req, res) =
 /**
  * PUT /api/users/:id/projects
  * Обновить список проектов пользователя
+ * - Для manager: обновляет allowed_project_ids
+ * - Для admin (вызов super_admin): переназначает owner_admin_id на проектах
  */
 router.put('/:id/projects', adminOrSuperAdmin, asyncHandler(async (req, res) => {
   const db = req.db;
@@ -754,10 +756,25 @@ router.put('/:id/projects', adminOrSuperAdmin, asyncHandler(async (req, res) => 
   }
 
   const now = Math.floor(Date.now() / 1000);
-  db.prepare('UPDATE users SET allowed_project_ids = ?, updated_at = ? WHERE id = ?')
-    .run(JSON.stringify(Array.isArray(projectIds) ? projectIds : []), now, targetUserId);
+  const newIds = Array.isArray(projectIds) ? projectIds : [];
 
-  logConsole('info', 'User projects updated', { targetUserId, count: (projectIds||[]).length });
+  if (targetUser.role === 'admin' && user.role === 'super_admin') {
+    // Reassign owner_admin_id: return admin's current projects to super_admin, then assign selected
+    db.prepare('UPDATE projects SET owner_admin_id = ? WHERE owner_admin_id = ?')
+      .run(user.userId, targetUserId);
+    if (newIds.length) {
+      const placeholders = newIds.map(() => '?').join(',');
+      db.prepare(`UPDATE projects SET owner_admin_id = ? WHERE id IN (${placeholders})`)
+        .run(targetUserId, ...newIds);
+    }
+    logConsole('info', 'Admin project ownership updated', { adminId: targetUserId, ownedCount: newIds.length });
+  } else {
+    // For managers: update allowed_project_ids
+    db.prepare('UPDATE users SET allowed_project_ids = ?, updated_at = ? WHERE id = ?')
+      .run(JSON.stringify(newIds), now, targetUserId);
+    logConsole('info', 'Manager projects updated', { targetUserId, count: newIds.length });
+  }
+
   return res.json({ success: true, message: 'Projects updated' });
 }));
 

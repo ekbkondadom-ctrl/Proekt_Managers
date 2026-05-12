@@ -4033,6 +4033,14 @@ async function openUserProjectsModal(userId, userName) {
     return;
   }
 
+  // Deduplicate by name — keep the version owned by target user when there's a clash
+  const seenNames = new Map();
+  projList.forEach(p => {
+    const key = (p.name || '').trim().toLowerCase();
+    if (!seenNames.has(key) || p.ownerAdminId === userId) seenNames.set(key, p);
+  });
+  projList = Array.from(seenNames.values());
+
   if (_uprIsAdmin) {
     // Pre-check projects owned by this admin; if admin has none yet — pre-check all (initial setup convenience)
     const ownedByAdmin = projList.filter(p => p.ownerAdminId === userId).map(p => p.id);
@@ -4063,12 +4071,9 @@ function uprToggle(projectId, checked) {
 
 async function saveUserProjects() {
   if (!_uprUserId) return;
-  const body = _uprIsAdmin
-    ? { ownedProjectIds: _uprAllowedIds }
-    : { allowedProjectIds: _uprAllowedIds };
-  const result = await apiRequest(`/api/users/${_uprUserId}`, {
+  const result = await apiRequest(`/api/users/${_uprUserId}/projects`, {
     method: 'PUT',
-    body: JSON.stringify(body)
+    body: JSON.stringify({ projectIds: _uprAllowedIds })
   });
   if (result.ok && result.json.success) {
     const u = allUsers.find(u => u.id === _uprUserId);

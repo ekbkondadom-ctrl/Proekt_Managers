@@ -309,16 +309,27 @@ router.get('/admin-stats', onlySuperAdmin, asyncHandler(async (req, res) => {
   try {
     const admins = db.prepare("SELECT id, name, login, last_login_at FROM users WHERE role = 'admin' AND status = 'active'").all();
 
+    // Проекты без явного владельца-admin (созданы super_admin-ом) — при единственном admin они его
+    const superAdminIds = db.prepare("SELECT id FROM users WHERE role = 'super_admin'").all().map(u => u.id);
+    const orphanProjects = superAdminIds.length
+      ? db.prepare(
+          `SELECT name, owner_admin_id FROM projects WHERE owner_admin_id IN (${superAdminIds.map(()=>'?').join(',')}) ORDER BY created_at DESC`
+        ).all(...superAdminIds)
+      : [];
+
     const stats = admins.map(admin => {
-      const projects = db.prepare('SELECT name FROM projects WHERE owner_admin_id = ? ORDER BY created_at DESC').all(admin.id);
+      const ownProjects = db.prepare('SELECT name FROM projects WHERE owner_admin_id = ? ORDER BY created_at DESC').all(admin.id);
+      // Если admin единственный — добавляем «бесхозные» проекты super_admin
+      const extraProjects = admins.length === 1 ? orphanProjects : [];
+      const allProjects = [...ownProjects, ...extraProjects];
       const managerCount = db.prepare("SELECT COUNT(*) as cnt FROM users WHERE admin_id = ? AND role = 'manager' AND status = 'active'").get(admin.id)?.cnt || 0;
       return {
         id: admin.id,
         name: admin.name,
         login: admin.login,
         lastLoginAt: admin.last_login_at,
-        projectCount: projects.length,
-        projectNames: projects.map(p => p.name),
+        projectCount: allProjects.length,
+        projectNames: allProjects.map(p => p.name),
         managerCount
       };
     });

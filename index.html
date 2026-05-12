@@ -588,7 +588,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
     <button class="tab-btn" id="stab-estimate" onclick="showSettingsTab('estimate',this)" style="color:#333;border-color:#ccc">🧮 Смета</button>
     <button class="tab-btn" id="stab-project" onclick="showSettingsTab('project',this)" style="color:#333;border-color:#ccc">🏠 Проект</button>
     <button class="tab-btn" id="stab-users" onclick="showSettingsTab('users',this)" style="color:#333;border-color:#ccc;display:none">👥 Пользователи</button>
-    <button class="btn-new-proj" id="settingsNewProjectBtn" type="button" onclick="newProject()" style="display:block;margin-left:auto">+ Новый проект</button>
+    <button id="saveAllBtn" type="button" onclick="syncAllProjects()" style="display:block;background:#3a4a3c;color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">💾 Сохранить</button>
+    <button class="btn-new-proj" id="settingsNewProjectBtn" type="button" onclick="newProject()" style="display:block">+ Новый проект</button>
   </div>
 
   <!-- PHOTOS TAB -->
@@ -1377,14 +1378,17 @@ async function handleLogin(event) {
 
 async function logout() {
   stopBackendPolling();
-  await apiRequest('/api/auth/logout', { method: 'POST' });
   localStorage.removeItem('jwt_token');
+  localStorage.removeItem('conda_projects');
   currentUser = null;
+  projects = [];
+  currentProjIdx = 0;
   updateAuthUI();
   const usersTab = document.getElementById('stab-users');
   if (usersTab) usersTab.style.display = 'none';
   renderAll();
   showLoginOverlay();
+  apiRequest('/api/auth/logout', { method: 'POST' }).catch(() => {});
 }
 
 async function loadBackendProjects() {
@@ -1447,6 +1451,12 @@ async function createProjectOnBackend(project) {
     multiSel: project.multiSel
   };
 
+  // super_admin: назначаем проект единственному admin, если он есть
+  if (currentUser?.role === 'super_admin') {
+    const admins = (allUsers || []).filter(u => u.role === 'admin' && u.status !== 'blocked');
+    if (admins.length === 1) body.ownerAdminId = admins[0].id;
+  }
+
   const result = await apiRequest('/api/projects', {
     method: 'POST',
     body: JSON.stringify(body)
@@ -1498,6 +1508,20 @@ async function syncAllUnsyncedProjects() {
     if (!project._synced) {
       await createProjectOnBackend(project);
     }
+  }
+}
+
+async function syncAllProjects() {
+  if (!localStorage.getItem('jwt_token')) return;
+  const btn = document.getElementById('saveAllBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Сохраняю...'; }
+  try {
+    for (const project of projects) {
+      await syncCurrentProject(project);
+    }
+    if (btn) { btn.textContent = '✅ Сохранено'; setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Сохранить'; }, 2000); }
+  } catch(e) {
+    if (btn) { btn.textContent = '⚠ Ошибка'; setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Сохранить'; }, 2000); }
   }
 }
 
@@ -3369,7 +3393,12 @@ importExcel = function(input) {
         `✅ Импорт завершён. Проектов обновлено: ${projUpdated}`
         + (projCreated ? `, создано: ${projCreated}` : '')
         + `. Разделов: ${sectionsTotal}, вариантов: ${optionsTotal}, позиций: ${itemsTotal}`
-        + (specsCount ? `, характеристик: ${specsCount}` : '') + '.';
+        + (specsCount ? `, характеристик: ${specsCount}` : '') + '. Синхронизация с сервером...';
+
+      // Синхронизируем все проекты на сервер
+      syncAllProjects().then(() => {
+        statusEl.textContent = statusEl.textContent.replace('Синхронизация с сервером...', 'Сохранено на сервере.');
+      }).catch(() => {});
 
     } catch(err) {
       statusEl.textContent = '⚠ Ошибка: ' + err.message;

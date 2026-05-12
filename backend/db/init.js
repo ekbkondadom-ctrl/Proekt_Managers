@@ -1,157 +1,190 @@
 /**
  * db/init.js
  * 
- * Инициализация хранилища данных (JSON-based)
- * Простое решение для разработки, легко мигрировать на БД позже
+ * Инициализация SQLite базы данных для backend сервера
  */
 
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const initSqlJs = require('sql.js');
 
 dotenv.config();
 
-const DATA_DIR = path.join(__dirname, '../data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const PROJECTS_FILE = path.join(DATA_DIR, 'projects.json');
-const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-const LOGS_FILE = path.join(DATA_DIR, 'logs.json');
-const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const DB_PATH = process.env.DATABASE_PATH
+  ? path.resolve(process.env.DATABASE_PATH)
+  : path.join(__dirname, '../conda.db');
+const SCHEMA_FILE = path.join(__dirname, 'schema.sql');
 
-// Убедимся, что директория существует
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureDatabaseDir() {
+  const dbDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
 }
 
-/**
- * Инициализирует хранилище данных
- * @returns {Object} Экземпляр БД
- */
-function initDatabase() {
+function saveDatabase(db) {
   try {
-    // Создаем пустые файлы если они не существуют
-    const ensureFile = (filePath, defaultContent = []) => {
-      if (!fs.existsSync(filePath)) {
-        fs.writeFileSync(filePath, JSON.stringify(defaultContent, null, 2));
-      }
-    };
-
-    ensureFile(USERS_FILE, []);
-    ensureFile(PROJECTS_FILE, []);
-    ensureFile(SETTINGS_FILE, []);
-    ensureFile(LOGS_FILE, []);
-    ensureFile(CONFIG_FILE, { 
-      initial_setup_completed: false,
-      created_at: Date.now() 
-    });
-
-    console.log(`✓ Data storage initialized at: ${DATA_DIR}`);
-    
-    // Возвращаем объект "БД" с методами
-    return {
-      prepare: (sql) => new MockStatement(sql),
-      exec: (sql) => {},
-      pragma: () => {},
-      close: () => {},
-      run: () => {}
-    };
-
+    const data = db.export();
+    fs.writeFileSync(DB_PATH, Buffer.from(data));
   } catch (err) {
-    console.error('Storage initialization error:', err.message);
+    console.error('Database save error:', err.message);
     throw err;
   }
 }
 
-/**
- * Проверяет существует ли БД и она инициализирована
- * @returns {boolean} true если БД существует и инициализирована
- */
+function createStatementWrapper(db, statement) {
+  return {
+    run: (...params) => {
+      if (params.length) {
+        statement.bind(params);
+      }
+      statement.step();
+      statement.free();
+      saveDatabase(db);
+      return { changes: db.getRowsModified() };
+    },
+    get: (...params) => {
+      if (params.length) {
+        statement.bind(params);
+      }
+      const hasRow = statement.step();
+      const row = hasRow ? statement.getAsObject() : null;
+      statement.free();
+      return row;
+    },
+    all: (...params) => {
+      if (params.length) {
+        statement.bind(params);
+      }
+      const rows = [];
+      while (statement.step()) {
+        rows.push(statement.getAsObject());
+      }
+      statement.free();
+      return rows;
+    }
+  };
+}
+
+async function initDatabase() {
+  try {
+    ensureDatabaseDir();
+
+    const SQL = await initSqlJs({ locateFile: file => path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file) });
+    let db;
+
+    if (fs.existsSync(DB_PATH)) {
+      const fileBuffer = fs.readFileSync(DB_PATH);
+      db = new SQL.Database(fileBuffer);
+    } else {
+      db = new SQL.Database();
+    }
+
+    db.exec('PRAGMA foreign_keys = ON;');
+
+    if (!fs.existsSync(SCHEMA_FILE)) {
+      throw new Error(`Schema file not found: ${SCHEMA_FILE}`);
+    }
+
+    const schema = fs.readFileSync(SCHEMA_FILE, 'utf-8');
+    db.exec(schema);
+    saveDatabase(db);
+
+    const wrappedDb = {
+      prepare: sql => createStatementWrapper(db, db.prepare(sql)),
+      exec: sql => {
+        const result = db.exec(sql);
+        saveDatabase(db);
+        return result;
+      },
+      pragma: sql => db.exec(`PRAGMA ${sql}`),
+      close: () => db.close(),
+      run: (sql, params = []) => {
+        const stmt = db.prepare(sql);
+        if (params.length) {
+          stmt.bind(params);
+        }
+        stmt.step();
+        stmt.free();
+        saveDatabase(db);
+        return { changes: db.getRowsModified() };
+      },
+      getRowsModified: () => db.getRowsModified(),
+      export: () => db.export()
+    };
+
+    console.log(`✓ SQLite database initialized at: ${DB_PATH}`);
+    return wrappedDb;
+  } catch (err) {
+    console.error('Database initialization error:', err.message);
+    throw err;
+  }
+}
+
 function isDatabaseInitialized() {
   try {
     if (!fs.existsSync(DB_PATH)) {
       return false;
     }
-    
+
     const db = new Database(DB_PATH);
     db.pragma('foreign_keys = ON');
-    
-    // Проверяем существует ли основная таблица
+
     const result = db.prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
     ).get();
-    
+
     db.close();
-    return result ? true : false;
+    return !!result;
   } catch (err) {
     console.error('Database check error:', err.message);
     return false;
   }
 }
 
-/**
- * Получает статус первичной настройки системы
- * @param {Database} db - Экземпляр БД
- * @returns {boolean} true если первичная настройка завершена
- */
 function isSetupCompleted(db) {
   try {
     const stmt = db.prepare('SELECT value FROM system_config WHERE key = ?');
     const result = stmt.get('initial_setup_completed');
-    
-    if (!result) return false;
-    return result.value === 'true';
+    return result?.value === 'true';
   } catch (err) {
     console.error('Setup status check error:', err.message);
     return false;
   }
 }
 
-/**
- * Устанавливает флаг завершения первичной настройки
- * @param {Database} db - Экземпляр БД
- * @param {boolean} completed - true для завершения
- */
 function setSetupCompleted(db, completed = true) {
   try {
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO system_config (key, value, updated_at)
       VALUES (?, ?, ?)
     `);
-    
+
     const now = Math.floor(Date.now() / 1000);
     stmt.run('initial_setup_completed', completed ? 'true' : 'false', now);
-    
     console.log(`✓ Setup completed flag set to: ${completed}`);
   } catch (err) {
     console.error('Setup flag error:', err.message);
   }
 }
 
-/**
- * Проверяет есть ли супер-админ в системе
- * @param {Database} db - Экземпляр БД
- * @returns {boolean} true если супер-админ существует и активен
- */
 function hasSuperAdmin(db) {
   try {
     const stmt = db.prepare(`
-      SELECT id FROM users 
-      WHERE role = 'super_admin' AND status = 'active' 
+      SELECT id FROM users
+      WHERE role = 'super_admin' AND status = 'active'
       LIMIT 1
     `);
-    
+
     const result = stmt.get();
-    return result ? true : false;
+    return !!result;
   } catch (err) {
     console.error('Super admin check error:', err.message);
     return false;
   }
 }
 
-/**
- * Сбрасывает БД (удаляет файл БД)
- * ОСТОРОЖНО: это необратимо!
- */
 function resetDatabase() {
   try {
     if (fs.existsSync(DB_PATH)) {

@@ -14,7 +14,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuid } = require('uuid');
 
-const { onlySuperAdmin } = require('../middleware/rbac');
+const { onlySuperAdmin, adminOrSuperAdmin } = require('../middleware/rbac');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { hashPassword, generateRandomPassword } = require('../utils/passwordHash');
 const { logAction, logConsole } = require('../utils/logger');
@@ -30,15 +30,21 @@ const { logAction, logConsole } = require('../utils/logger');
  * - limit: number (максимум результатов)
  * - offset: number (смещение)
  */
-router.get('/', onlySuperAdmin, asyncHandler(async (req, res) => {
+router.get('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
   const db = req.db;
-  const superAdminId = req.user.userId;
+  const requestingUser = req.user;
 
   const { role, status, search, limit = 50, offset = 0 } = req.query;
 
   try {
     let query = 'SELECT * FROM users WHERE 1=1';
     const params = [];
+
+    // Администратор видит только своих менеджеров
+    if (requestingUser.role === 'admin') {
+      query += ' AND admin_id = ?';
+      params.push(requestingUser.userId);
+    }
 
     if (role) {
       query += ' AND role = ?';
@@ -67,6 +73,10 @@ router.get('/', onlySuperAdmin, asyncHandler(async (req, res) => {
     let countQuery = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
     const countParams = [];
 
+    if (requestingUser.role === 'admin') {
+      countQuery += ' AND admin_id = ?';
+      countParams.push(requestingUser.userId);
+    }
     if (role) {
       countQuery += ' AND role = ?';
       countParams.push(role);
@@ -100,7 +110,8 @@ router.get('/', onlySuperAdmin, asyncHandler(async (req, res) => {
     }));
 
     logConsole('debug', 'Users list requested', {
-      superAdminId,
+      requestingUserId: requestingUser.userId,
+      requestingRole: requestingUser.role,
       filters: { role, status, search },
       count: safeUsers.length,
       total

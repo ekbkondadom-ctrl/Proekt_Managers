@@ -345,15 +345,71 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
   </div>
 </div>
 
+<!-- LOGIN OVERLAY (full-screen, non-dismissable) -->
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:rgba(30,40,32,0.92);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:10px;padding:36px 40px;max-width:400px;width:90%;box-shadow:0 24px 80px rgba(0,0,0,0.5)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:36px;margin-bottom:10px">🌲</div>
+      <div style="font-size:22px;font-weight:700;color:#2d3a2e;letter-spacing:.3px">КОНДА</div>
+      <div style="font-size:13px;color:#666;margin-top:6px">Войдите в систему для работы</div>
+    </div>
+    <form onsubmit="handleLogin(event)" style="display:grid;gap:14px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Логин</label>
+        <input type="text" id="loginUserLogin" required autocomplete="username" placeholder="Ваш логин" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Пароль</label>
+        <input type="password" id="loginUserPassword" required autocomplete="current-password" placeholder="••••••••" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+      </div>
+      <div id="loginError" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;border-radius:4px;padding:8px 12px;font-size:12px;color:#c0392b"></div>
+      <button type="submit" id="loginSubmitBtn" style="background:#3a4a3c;color:#fff;border:none;border-radius:5px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.3px;margin-top:4px" onmouseover="this.style.background='#4a5e4c'" onmouseout="this.style.background='#3a4a3c'">Войти</button>
+    </form>
+  </div>
+</div>
+
+<!-- FIRST RUN SETUP OVERLAY -->
+<div id="setupOverlay" style="display:none;position:fixed;inset:0;background:rgba(30,40,32,0.85);z-index:10000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:10px;padding:36px 40px;max-width:440px;width:90%;box-shadow:0 24px 80px rgba(0,0,0,0.4)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:36px;margin-bottom:10px">🌲</div>
+      <div style="font-size:22px;font-weight:700;color:#2d3a2e;letter-spacing:.3px">Первый запуск КОНДА</div>
+      <div style="font-size:13px;color:#666;margin-top:8px;line-height:1.5">Создайте аккаунт супер-администратора.<br>После этого вы сможете добавлять пользователей и управлять проектами.</div>
+    </div>
+    <form id="firstRunForm" onsubmit="handleFirstRunSetup(event)" style="display:grid;gap:14px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Ваше имя*</label>
+        <input type="text" id="frName" required placeholder="Иван Иванов" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Логин*</label>
+        <input type="text" id="frLogin" required placeholder="уникальный логин (мин. 3 символа)" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Email*</label>
+        <input type="email" id="frEmail" required placeholder="email@example.com" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Пароль* (мин. 8 символов)</label>
+        <input type="password" id="frPassword" required placeholder="••••••••" style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none" onfocus="this.style.borderColor='#8a6a45'" onblur="this.style.borderColor='#ccc'">
+      </div>
+      <div id="frError" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;border-radius:4px;padding:8px 12px;font-size:12px;color:#c0392b"></div>
+      <button type="submit" id="frSubmitBtn" style="background:#3a4a3c;color:#fff;border:none;border-radius:5px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.3px;margin-top:4px" onmouseover="this.style.background='#4a5e4c'" onmouseout="this.style.background='#3a4a3c'">Создать аккаунт супер-администратора</button>
+    </form>
+  </div>
+</div>
+
 <!-- TOP BAR -->
 <div class="topbar">
   <div class="topbar-logo">🌲 КОНДА</div>
   <div class="projects-strip" id="projectsStrip">
-    <!-- project buttons + "new project" button injected here -->
+    <!-- project buttons injected here -->
   </div>
   <div class="topbar-right" style="position:relative">
     <button class="tab-btn active" id="btnViewProj" onclick="switchView('project')">📋 Проект</button>
     <button class="tab-btn" id="btnViewSet" onclick="switchView('settings')">⚙ Настройки</button>
+    <span id="userStatus" style="display:none;color:#c8c8c8;font-size:11px;white-space:nowrap;margin-left:12px"></span>
+    <button class="btn-new-proj" id="btnAuthAction" onclick="logout()" style="display:none;margin-left:8px;min-width:90px">Выйти</button>
   </div>
 </div>
 
@@ -997,6 +1053,7 @@ function saveState() {
     const toSave = projects.map(p => ({...p, _slim:true}));
     localStorage.setItem('conda_projects', JSON.stringify(toSave));
   } catch(e) { /* quota exceeded — ok */ }
+  scheduleBackendSync();
 }
 
 function loadState() {
@@ -1005,6 +1062,324 @@ function loadState() {
     if (s) { projects = JSON.parse(s); return true; }
   } catch(e) {}
   return false;
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('jwt_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+function normalizeProjectForClient(project) {
+  return {
+    id: project.id,
+    name: project.name || 'Проект',
+    code: project.code || '',
+    client: project.client || '',
+    date: project.date || new Date().toISOString().slice(0,10),
+    images: Array.isArray(project.images) ? project.images : [],
+    planImages: Array.isArray(project.planImages) ? project.planImages : [],
+    specs: Array.isArray(project.specs) ? project.specs : [],
+    configData: Array.isArray(project.configData) ? project.configData : [],
+    selections: (project.selections && typeof project.selections === 'object') ? project.selections : {},
+    multiSel: (project.multiSel && typeof project.multiSel === 'object') ? project.multiSel : {},
+    _synced: project._synced !== undefined ? project._synced : (typeof project.id === 'string' && project.id.includes('-'))
+  };
+}
+
+let backendSyncTimer = null;
+function scheduleBackendSync() {
+  if (!localStorage.getItem('jwt_token')) return;
+  clearTimeout(backendSyncTimer);
+  backendSyncTimer = setTimeout(async () => {
+    backendSyncTimer = null;
+    await syncCurrentProject();
+  }, 800);
+}
+
+async function apiRequest(path, opts = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+    ...opts.headers
+  };
+
+  try {
+    const response = await fetch(path, { ...opts, headers });
+    const contentType = response.headers.get('content-type') || '';
+    const json = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
+    return { ok: response.ok, status: response.status, json };
+  } catch (error) {
+    console.error('API request failed:', path, error);
+    return { ok: false, error };
+  }
+}
+
+async function checkAuth() {
+  const token = localStorage.getItem('jwt_token');
+  if (!token) { currentUser = null; updateAuthUI(); return false; }
+
+  const result = await apiRequest('/api/auth/check', { method: 'GET' });
+  if (!result.ok || !result.json.success) {
+    localStorage.removeItem('jwt_token');
+    currentUser = null;
+    updateAuthUI();
+    return false;
+  }
+
+  currentUser = result.json.user;
+  updateAuthUI();
+  return true;
+}
+
+function updateAuthUI() {
+  const btn = document.getElementById('btnAuthAction');
+  const status = document.getElementById('userStatus');
+
+  if (currentUser) {
+    if (status) {
+      status.textContent = `${currentUser.name || currentUser.login} (${currentUser.role || 'user'})`;
+      status.style.display = '';
+    }
+    if (btn) {
+      btn.textContent = 'Выйти';
+      btn.style.display = '';
+      btn.onclick = logout;
+    }
+  } else {
+    if (status) status.style.display = 'none';
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+function toggleLoginModal() {
+  showLoginOverlay();
+}
+
+function showLoginOverlay() {
+  const overlay = document.getElementById('loginOverlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  setTimeout(() => {
+    const el = document.getElementById('loginUserLogin');
+    if (el) el.focus();
+  }, 100);
+}
+
+function closeLoginModal() {
+  const overlay = document.getElementById('loginOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+async function handleLogin(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  const login = document.getElementById('loginUserLogin').value.trim();
+  const password = document.getElementById('loginUserPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginSubmitBtn');
+
+  if (errEl) errEl.style.display = 'none';
+
+  if (!login || !password) {
+    if (errEl) { errEl.textContent = 'Введите логин и пароль'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Вход...'; }
+
+  const result = await apiRequest('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ login, password })
+  });
+
+  if (!result.ok || !result.json.success) {
+    if (errEl) {
+      errEl.textContent = 'Неверный логин или пароль';
+      errEl.style.display = 'block';
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Войти'; }
+    return;
+  }
+
+  localStorage.setItem('jwt_token', result.json.token);
+  currentUser = result.json.user;
+  updateAuthUI();
+  closeLoginModal();
+  await loadBackendProjects();
+  await syncAllUnsyncedProjects();
+  await loadUsers();
+  renderAll();
+  showUsersTab();
+  startBackendPolling();
+}
+
+async function logout() {
+  stopBackendPolling();
+  await apiRequest('/api/auth/logout', { method: 'POST' });
+  localStorage.removeItem('jwt_token');
+  currentUser = null;
+  updateAuthUI();
+  renderAll();
+  showLoginOverlay();
+}
+
+async function loadBackendProjects() {
+  if (!localStorage.getItem('jwt_token')) return false;
+
+  const localProjects = [];
+  if (loadState()) {
+    localProjects.push(...projects.filter(p => !p._synced));
+  }
+
+  const result = await apiRequest('/api/projects', { method: 'GET' });
+  if (!result.ok || !result.json.success) {
+    if (projects.length) {
+      projects = projects.map(normalizeProjectForClient);
+      return true;
+    }
+    return false;
+  }
+
+  const backendProjects = Array.isArray(result.json.projects)
+    ? result.json.projects.map(normalizeProjectForClient)
+    : [];
+
+  if (backendProjects.length > 0 || localProjects.length > 0) {
+    projects = [...backendProjects, ...localProjects];
+    currentProjIdx = 0;
+    saveState();
+    for (const project of projects.filter(p => !p._synced)) {
+      await syncCurrentProject(project);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+async function syncCurrentProject(project) {
+  const target = project || currentProject();
+  if (!target || !localStorage.getItem('jwt_token')) return;
+
+  if (!target._synced) {
+    await createProjectOnBackend(target);
+    return;
+  }
+
+  await updateProjectOnBackend(target);
+}
+
+async function createProjectOnBackend(project) {
+  const body = {
+    name: project.name,
+    code: project.code,
+    client: project.client,
+    date: project.date,
+    images: project.images,
+    planImages: project.planImages,
+    specs: project.specs,
+    configData: project.configData,
+    selections: project.selections,
+    multiSel: project.multiSel
+  };
+
+  const result = await apiRequest('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+  if (!result.ok || !result.json.success) {
+    console.warn('Failed to sync new project:', result.json.error || result.error);
+    return;
+  }
+
+  project.id = result.json.project.id;
+  project._synced = true;
+  saveState();
+}
+
+async function updateProjectOnBackend(project) {
+  if (!project.id) return;
+
+  const body = {
+    name: project.name,
+    code: project.code,
+    client: project.client,
+    date: project.date,
+    images: project.images,
+    planImages: project.planImages,
+    specs: project.specs,
+    configData: project.configData,
+    selections: project.selections,
+    multiSel: project.multiSel
+  };
+
+  const result = await apiRequest(`/api/projects/${project.id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body)
+  });
+  if (!result.ok || !result.json.success) {
+    console.warn('Failed to update project:', result.json.error || result.error);
+  }
+}
+
+async function deleteProjectFromBackend(project) {
+  if (!project.id || !project._synced || !localStorage.getItem('jwt_token')) return false;
+  const result = await apiRequest(`/api/projects/${project.id}`, { method: 'DELETE' });
+  return result.ok && result.json.success;
+}
+
+async function syncAllUnsyncedProjects() {
+  if (!localStorage.getItem('jwt_token')) return;
+  for (const project of projects) {
+    if (!project._synced) {
+      await createProjectOnBackend(project);
+    }
+  }
+}
+
+// ── CROSS-BROWSER POLLING (sync every 30s) ──
+let backendPollInterval = null;
+
+function startBackendPolling() {
+  stopBackendPolling();
+  backendPollInterval = setInterval(pollBackendForChanges, 30000);
+}
+
+function stopBackendPolling() {
+  if (backendPollInterval) { clearInterval(backendPollInterval); backendPollInterval = null; }
+}
+
+async function pollBackendForChanges() {
+  if (!localStorage.getItem('jwt_token') || !currentUser) return;
+  if (backendSyncTimer !== null) return; // skip if local save is pending
+
+  const result = await apiRequest('/api/projects', { method: 'GET' });
+  if (!result.ok || !result.json.success || !Array.isArray(result.json.projects)) return;
+
+  const bp = result.json.projects;
+
+  // Compare: count of synced projects + max updated_at
+  const syncedLocal = projects.filter(p => p._synced);
+  const backendMax = bp.reduce((m, p) => Math.max(m, p.updated_at || 0), 0);
+  const localMax  = syncedLocal.reduce((m, p) => Math.max(m, p.updated_at || 0), 0);
+
+  if (bp.length === syncedLocal.length && backendMax <= localMax) return; // nothing changed
+
+  // Reload: preserve current project selection by id
+  const savedId = projects[currentProjIdx]?.id;
+  const unsyncedLocal = projects.filter(p => !p._synced);
+  projects = [...bp.map(normalizeProjectForClient), ...unsyncedLocal];
+  const newIdx = projects.findIndex(p => p.id === savedId);
+  currentProjIdx = newIdx >= 0 ? newIdx : 0;
+
+  renderAll();
+  const sv = document.getElementById('view-settings');
+  if (sv && sv.style.display !== 'none' && typeof renderSettings === 'function') renderSettings();
+}
+
+function canManageUsers() {
+  if (currentUser) return ['super_admin', 'admin'].includes(currentUser.role);
+  const user = getCurrentUserFromAPI();
+  return user && ['super_admin', 'admin'].includes(user.role);
 }
 
 // ========================================
@@ -1019,6 +1394,13 @@ function renderProjectButtons() {
     btn.innerHTML = `<span onclick="switchProject(${i})">${p.name}</span>`;
     strip.appendChild(btn);
   });
+  if (currentUser) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-new-proj';
+    addBtn.textContent = '+ Новый проект';
+    addBtn.onclick = newProject;
+    strip.appendChild(addBtn);
+  }
 }
 
 function switchProject(idx) {
@@ -1099,7 +1481,7 @@ function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-function confirmNewProject() {
+async function confirmNewProject() {
   const name = (document.getElementById('npName').value||'').trim();
   if (!name) { document.getElementById('npName').focus(); return; }
 
@@ -1121,8 +1503,10 @@ function confirmNewProject() {
     np.configData = Array.isArray(np.configData) ? np.configData : JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     np.selections = (np.selections && typeof np.selections === 'object') ? np.selections : {};
     np.multiSel   = (np.multiSel   && typeof np.multiSel   === 'object') ? np.multiSel   : {};
+    np._synced = false;
   } else {
     np = blankProject(name);
+    np._synced = false;
   }
 
   projects.push(np);
@@ -1140,6 +1524,10 @@ function confirmNewProject() {
   if (typeof renderSpecsEditor === 'function') try { renderSpecsEditor(); } catch(e) {}
   if (typeof renderProjectForm === 'function') try { renderProjectForm(); } catch(e) {}
   if (typeof renderConfigEditor === 'function') try { renderConfigEditor(); } catch(e) {}
+
+  if (localStorage.getItem('jwt_token')) {
+    await syncCurrentProject();
+  }
 }
 
 function deleteProjectAt(idx) {
@@ -1148,8 +1536,12 @@ function deleteProjectAt(idx) {
   document.getElementById('cfmProjName').textContent = '«' + projects[idx].name + '»';
   overlay.classList.add('show');
   const btn = document.getElementById('cfmDeleteBtn');
-  btn.onclick = function() {
+  btn.onclick = async function() {
     overlay.classList.remove('show');
+    const project = projects[idx];
+    if (localStorage.getItem('jwt_token')) {
+      await deleteProjectFromBackend(project);
+    }
     projects.splice(idx, 1);
     if (currentProjIdx >= projects.length) currentProjIdx = projects.length - 1;
     saveState();
@@ -2716,24 +3108,23 @@ var currentUser = null;
 var allUsers = [];
 
 function getCurrentUserFromAPI() {
-  // Получить текущего пользователя из токена или статуса
   const token = localStorage.getItem('jwt_token');
   if (!token) return null;
   try {
     const parts = token.split('.');
     if (parts.length === 3) {
-      const payload = JSON.parse(atob(parts[1]));
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(b64));
       return payload;
     }
-  } catch (e) {
-    console.error('Failed to parse token:', e);
-  }
+  } catch (e) {}
   return null;
 }
 
 function canManageUsers() {
+  if (currentUser) return ['super_admin', 'admin'].includes(currentUser.role);
   const user = getCurrentUserFromAPI();
-  return user && user.role === 'super_admin';
+  return user && ['super_admin', 'admin'].includes(user.role);
 }
 
 async function loadSystemStatus() {
@@ -2750,8 +3141,7 @@ async function loadSystemStatus() {
 async function showUsersTab() {
   const btn = document.getElementById('stab-users');
   if (!btn) return;
-  const status = await loadSystemStatus();
-  btn.style.display = (canManageUsers() || !status.hasSuperAdmin) ? 'block' : 'none';
+  btn.style.display = 'block';
 }
 
 async function loadUsers() {
@@ -2840,6 +3230,72 @@ async function loadUsers() {
   } catch (error) {
     console.error('Error loading users:', error);
     usersList.innerHTML = '<div style="padding:12px;color:#c00">Ошибка: ' + error.message + '</div>';
+  }
+}
+
+async function checkFirstRun() {
+  const overlay = document.getElementById('setupOverlay');
+  if (!overlay) return;
+  try {
+    const status = await loadSystemStatus();
+    if (!status.hasSuperAdmin) {
+      overlay.style.display = 'flex';
+      document.getElementById('frName').focus();
+    }
+  } catch (e) {}
+}
+
+async function handleFirstRunSetup(event) {
+  event.preventDefault();
+  const name = document.getElementById('frName').value.trim();
+  const login = document.getElementById('frLogin').value.trim();
+  const email = document.getElementById('frEmail').value.trim();
+  const password = document.getElementById('frPassword').value;
+  const errEl = document.getElementById('frError');
+  const btn = document.getElementById('frSubmitBtn');
+
+  errEl.style.display = 'none';
+
+  if (password.length < 8) {
+    errEl.textContent = 'Пароль должен быть минимум 8 символов';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Создание...';
+
+  try {
+    const response = await fetch('/api/system/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, login, email, password })
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      errEl.textContent = 'Ошибка: ' + (data.error || 'Не удалось создать аккаунт');
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Создать аккаунт супер-администратора';
+      return;
+    }
+
+    localStorage.setItem('jwt_token', data.token);
+    currentUser = data.user;
+    document.getElementById('setupOverlay').style.display = 'none';
+    updateAuthUI();
+    await loadBackendProjects();
+    await syncAllUnsyncedProjects();
+    await loadUsers();
+    renderAll();
+    showUsersTab();
+    startBackendPolling();
+  } catch (error) {
+    errEl.textContent = 'Ошибка сети: ' + error.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Создать аккаунт супер-администратора';
   }
 }
 
@@ -2985,10 +3441,21 @@ async function deleteUser(userId) {
 // ========================================
 // INIT
 // ========================================
-(function init() {
-  if (!loadState() || !projects.length) {
-    projects = [defaultProject('Дом «Тавда»')];
+async function init() {
+  await checkAuth();
+  let loadedFromBackend = false;
+  if (currentUser) {
+    loadedFromBackend = await loadBackendProjects();
+    await syncAllUnsyncedProjects();
+    startBackendPolling();
   }
+
+  if (!loadedFromBackend) {
+    if (!loadState() || !projects.length) {
+      projects = [defaultProject('Дом «Тавда»')];
+    }
+  }
+
   // Ensure default images if empty
   if (!projects[0].images?.length) projects[0].images = [...DEFAULT_IMAGES];
   // Миграция planImage -> planImages
@@ -3004,9 +3471,24 @@ async function deleteUser(userId) {
     if(!b.id.endsWith('-content')) b.classList.remove('active');
   });
   document.getElementById('stab-photos').classList.add('active');
+  updateAuthUI();
+  showUsersTab();
+
+  // Show login or first-run based on auth state
+  if (!currentUser) {
+    const status = await loadSystemStatus();
+    if (!status.hasSuperAdmin) {
+      checkFirstRun();
+    } else {
+      showLoginOverlay();
+    }
+  }
+
   // Первая версия при первом запуске
   if (!getVersions().length) saveNewVersion('Базовая версия');
-})();
+}
+
+init();
 
 // ========================================
 // CONFIG EDITOR (Settings → Смета)

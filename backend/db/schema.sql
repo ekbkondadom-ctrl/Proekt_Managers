@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   admin_id TEXT,
   permissions TEXT,
   plain_password TEXT,
+  allowed_project_ids TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   last_login_at INTEGER,

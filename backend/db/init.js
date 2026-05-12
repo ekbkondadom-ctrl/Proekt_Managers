@@ -94,6 +94,7 @@ async function initDatabase() {
     try { db.exec('ALTER TABLE users ADD COLUMN permissions TEXT'); } catch(e) {}
     try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch(e) {}
     try { db.exec('ALTER TABLE users ADD COLUMN plain_password TEXT'); } catch(e) {}
+    try { db.exec('ALTER TABLE users ADD COLUMN allowed_project_ids TEXT'); } catch(e) {}
 
     saveDatabase(db);
 

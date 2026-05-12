@@ -3238,7 +3238,17 @@ importExcel = function(input) {
         return;
       }
 
-      // Снимок до импорта попадёт в UNDO автоматически через обёртку saveState
+      // Загружаем актуальный список проектов с бэкенда, чтобы не создавать дубли
+      if (localStorage.getItem('jwt_token')) {
+        const bpRes = await apiRequest('/api/projects', { method: 'GET' });
+        if (bpRes.ok && bpRes.json.success && Array.isArray(bpRes.json.projects)) {
+          bpRes.json.projects.forEach(bp => {
+            if (!projects.find(p => p.id === bp.id)) {
+              projects.push(normalizeProjectForClient(bp));
+            }
+          });
+        }
+      }
 
       // ── Полная синхронизация: configData проектов перестраивается из Excel ──
       let projUpdated = 0, projCreated = 0, sectionsTotal = 0, optionsTotal = 0, itemsTotal = 0;
@@ -3272,8 +3282,8 @@ importExcel = function(input) {
         if (ws.name === 'Проекты') return;
         const projName = ws.name;
 
-        // Найти существующий проект по имени или создать новый
-        let proj = projects.find(p => (p.name||'').trim() === projName.trim());
+        // Найти существующий проект: сначала по имени листа (как экспортируется), потом по полному имени
+        let proj = projects.find(p => _sheetNameOf(p) === projName || (p.name||'').trim() === projName.trim());
         const isNew = !proj;
         if (isNew) {
           proj = blankProject(projName);

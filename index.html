@@ -4049,9 +4049,8 @@ async function openUserProjectsModal(userId, userName) {
   projList = Array.from(seenNames.values());
 
   if (_uprIsAdmin) {
-    // Pre-check projects owned by this admin; if admin has none yet — pre-check all (initial setup convenience)
-    const ownedByAdmin = projList.filter(p => p.ownerAdminId === userId).map(p => p.id);
-    _uprAllowedIds = ownedByAdmin.length > 0 ? ownedByAdmin : projList.map(p => p.id);
+    // Pre-check based on admin's allowed_project_ids (no ownership changes)
+    _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : projList.map(p => p.id);
   } else {
     // For manager targets: use allowedProjectIds, defaulting to all
     _uprAllowedIds = user?.allowedProjectIds ? [...user.allowedProjectIds] : projList.map(p => p.id);
@@ -4084,9 +4083,9 @@ async function saveUserProjects() {
   });
   if (result.ok && result.json.success) {
     const u = allUsers.find(u => u.id === _uprUserId);
-    if (u && !_uprIsAdmin) u.allowedProjectIds = [..._uprAllowedIds];
+    if (u) u.allowedProjectIds = [..._uprAllowedIds];
     closeUserProjectsModal();
-    if (_uprIsAdmin) await loadBackendProjects();
+    await loadUsers();
   } else {
     alert('Ошибка сохранения: ' + (result.json?.error || 'неизвестная ошибка'));
   }

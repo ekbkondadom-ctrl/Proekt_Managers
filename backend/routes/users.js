@@ -266,11 +266,15 @@ router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       creatorId
     );
 
-    // When super_admin creates a new admin — transfer all super_admin's projects to the new admin
+    // When super_admin creates a new admin — give access to all super_admin's projects via allowed_project_ids
     if (role === 'admin' && creatorRole === 'super_admin') {
-      db.prepare('UPDATE projects SET owner_admin_id = ? WHERE owner_admin_id = ?')
-        .run(userId, creatorId);
-      logConsole('info', 'Projects transferred to new admin', { from: creatorId, to: userId });
+      const superProjects = db.prepare('SELECT id FROM projects WHERE owner_admin_id = ?').all(creatorId);
+      const projectIds = superProjects.map(p => p.id);
+      if (projectIds.length) {
+        db.prepare('UPDATE users SET allowed_project_ids = ? WHERE id = ?')
+          .run(JSON.stringify(projectIds), userId);
+      }
+      logConsole('info', 'Admin given access to super_admin projects', { adminId: userId, count: projectIds.length });
     }
 
     // Auto-assign admin's projects to new manager
@@ -759,15 +763,10 @@ router.put('/:id/projects', adminOrSuperAdmin, asyncHandler(async (req, res) => 
   const newIds = Array.isArray(projectIds) ? projectIds : [];
 
   if (targetUser.role === 'admin' && user.role === 'super_admin') {
-    // Reassign owner_admin_id: return admin's current projects to super_admin, then assign selected
-    db.prepare('UPDATE projects SET owner_admin_id = ? WHERE owner_admin_id = ?')
-      .run(user.userId, targetUserId);
-    if (newIds.length) {
-      const placeholders = newIds.map(() => '?').join(',');
-      db.prepare(`UPDATE projects SET owner_admin_id = ? WHERE id IN (${placeholders})`)
-        .run(targetUserId, ...newIds);
-    }
-    logConsole('info', 'Admin project ownership updated', { adminId: targetUserId, ownedCount: newIds.length });
+    // Update allowed_project_ids for admin (no ownership change — projects stay with super_admin)
+    db.prepare('UPDATE users SET allowed_project_ids = ?, updated_at = ? WHERE id = ?')
+      .run(JSON.stringify(newIds), now, targetUserId);
+    logConsole('info', 'Admin allowed projects updated', { adminId: targetUserId, count: newIds.length });
   } else {
     // For managers: update allowed_project_ids
     db.prepare('UPDATE users SET allowed_project_ids = ?, updated_at = ? WHERE id = ?')

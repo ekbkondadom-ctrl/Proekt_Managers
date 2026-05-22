@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>КОНДА — Менеджер проектов v3.0</title>
+<link rel="icon" href="data:,">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -596,6 +597,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
     <button class="tab-btn active" id="stab-photos" onclick="showSettingsTab('photos',this)" style="color:#333;border-color:#ccc">📷 Фото и планировка</button>
     <button class="tab-btn" id="stab-specs" onclick="showSettingsTab('specs',this)" style="color:#333;border-color:#ccc">📐 Характеристики</button>
     <button class="tab-btn" id="stab-estimate" onclick="showSettingsTab('estimate',this)" style="color:#333;border-color:#ccc">🧮 Смета</button>
+    <button class="tab-btn" id="stab-catalog" onclick="showSettingsTab('catalog',this)" style="color:#333;border-color:#ccc;display:none">📚 Справочник</button>
     <button class="tab-btn" id="stab-project" onclick="showSettingsTab('project',this)" style="color:#333;border-color:#ccc">🏠 Проект</button>
     <button class="tab-btn" id="stab-users" onclick="showSettingsTab('users',this)" style="color:#333;border-color:#ccc;display:none">👥 Пользователи</button>
     <button id="saveAllBtn" type="button" onclick="syncAllProjects()" style="display:block;background:#3a4a3c;color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">💾 Сохранить</button>
@@ -697,6 +699,54 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
     </div>
   </div>
 
+  <!-- PRICE CATALOG TAB -->
+  <div id="stab-catalog-content" style="display:none">
+    <div class="settings-grid">
+      <div class="scard">
+        <div class="scard-head">Справочник цен</div>
+        <div class="scard-body">
+          <div class="export-grid">
+            <div class="export-col">
+              <button class="btn-action btn-export" onclick="rebuildPriceCatalogFromProjects()">📚 Собрать из проектов</button>
+              <div class="export-desc">Формирует общий список позиций по разделам из текущих карточек проектов.</div>
+            </div>
+            <div class="export-col">
+              <button class="btn-action primary" onclick="applyPriceCatalogAndSaveProjects()">✅ Применить ко всем проектам</button>
+              <div class="export-desc">Обновляет только цены, объёмы и состав смет в проектах не меняются.</div>
+            </div>
+            <div class="export-col">
+              <button class="btn-action btn-export" onclick="exportPriceCatalog()">⬇ Экспорт Excel</button>
+              <div class="export-desc">Выгрузка справочника для массового редактирования цен.</div>
+            </div>
+            <div class="export-col">
+              <label class="btn-action" style="display:inline-block;text-align:center;cursor:pointer">
+                ⬆ Импорт Excel
+                <input type="file" accept=".xlsx,.xls" onchange="importPriceCatalog(this)" style="display:none">
+              </label>
+              <div class="export-desc">После загрузки цены из справочника применяются ко всем проектам.</div>
+            </div>
+          </div>
+          <div id="catalogStatus" style="margin-top:10px;font-size:12px;color:#2c3a2e;font-weight:600"></div>
+        </div>
+      </div>
+      <div class="scard">
+        <div class="scard-head">Правило применения</div>
+        <div class="scard-body">
+          <div class="excel-note">
+            Цены сопоставляются по связке «раздел + наименование позиции + единица измерения».
+            При импорте смет из Excel объёмы берутся из файла, а цены можно затем подтянуть из справочника одной кнопкой.
+          </div>
+        </div>
+      </div>
+      <div class="scard full">
+        <div class="scard-head">Позиции справочника</div>
+        <div class="scard-body" id="priceCatalogEditor" style="max-height:560px;overflow:auto">
+          <div style="color:#aaa;font-size:12px;padding:8px">Загрузка...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- PROJECT TAB -->
   <div id="stab-project-content" style="display:none">
     <div class="scard" style="max-width:500px">
@@ -772,6 +822,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;background:#f2f3f4;c
       <div id="createUserSection" style="display:none;padding-top:20px;border-top:1px solid #e0e0e0">
         <div style="font-weight:600;color:#2d3a2e;margin-bottom:12px;font-size:12px">СОЗДАТЬ НОВОГО ПОЛЬЗОВАТЕЛЯ</div>
         <form id="createUserForm" onsubmit="handleCreateUser(event)" style="display:grid;gap:10px;max-width:400px">
+          <div id="newAdminProjectsDiv" style="display:none;border:1px solid #e0e0e0;border-radius:4px;padding:10px;background:#fafafa">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+              <label style="font-size:11px;color:#666;font-weight:600">Проекты для администратора</label>
+              <button type="button" onclick="toggleNewAdminProjects(true)" style="border:1px solid #ccc;background:#fff;border-radius:3px;padding:3px 7px;font-size:10px;cursor:pointer">Все</button>
+            </div>
+            <div id="newAdminProjectsList" style="display:grid;gap:6px;max-height:150px;overflow:auto"></div>
+          </div>
           <div>
             <label style="display:block;font-size:11px;color:#666;margin-bottom:4px">Логин*</label>
             <input type="text" id="newUserLogin" required placeholder="Уникальный логин" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:2px">
@@ -1121,6 +1178,8 @@ const DEFAULT_CONFIG = [
 // ========================================
 let projects = [];
 let currentProjIdx = 0;
+const PRICE_CATALOG_KEY = 'priceCatalog';
+let priceCatalog = { version: 1, updatedAt: 0, items: [] };
 
 function defaultProject(name) {
   return {
@@ -1159,13 +1218,22 @@ function blankProject(name) {
 
 function currentProject() { return projects[currentProjIdx]; }
 
-function saveState() {
+function markProjectDirty(project) {
+  if (project) project._dirty = true;
+}
+
+function saveState(options = {}) {
+  if (options.sync !== false) markProjectDirty(options.project || currentProject());
   try {
     // Save without large base64 images to keep localStorage small
-    const toSave = projects.map(p => ({...p, _slim:true}));
+    const toSave = projects.map(p => {
+      const copy = {...p, _slim:true};
+      delete copy._syncing;
+      return copy;
+    });
     localStorage.setItem('conda_projects', JSON.stringify(toSave));
   } catch(e) { /* quota exceeded — ok */ }
-  scheduleBackendSync();
+  if (options.sync !== false) scheduleBackendSync();
 }
 
 function loadState() {
@@ -1202,13 +1270,47 @@ function normalizeProjectForClient(project) {
 }
 
 let backendSyncTimer = null;
+let isPageUnloading = false;
+let backendSyncInFlight = 0;
+let localEditHoldUntil = 0;
+
+window.addEventListener('beforeunload', () => {
+  isPageUnloading = true;
+  clearTimeout(backendSyncTimer);
+  backendSyncTimer = null;
+  stopBackendPolling();
+});
+
 function scheduleBackendSync() {
   if (!localStorage.getItem('jwt_token')) return;
+  localEditHoldUntil = Date.now() + 5000;
   clearTimeout(backendSyncTimer);
   backendSyncTimer = setTimeout(async () => {
     backendSyncTimer = null;
-    await syncCurrentProject();
+    await syncDirtyProjects();
   }, 800);
+}
+
+function cancelPendingBackendSync() {
+  clearTimeout(backendSyncTimer);
+  backendSyncTimer = null;
+}
+
+function waitMs(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForProjectSyncIdle(project, timeoutMs = 5000) {
+  const startedAt = Date.now();
+  while (project?._syncing && Date.now() - startedAt < timeoutMs) {
+    await waitMs(100);
+  }
+}
+
+function isUserEditingSettingsForm() {
+  const active = document.activeElement;
+  if (!active) return false;
+  return !!active.closest?.('#specsEditor, #configEditor, #stab-project-content, #stab-photos-content');
 }
 
 async function apiRequest(path, opts = {}) {
@@ -1226,9 +1328,39 @@ async function apiRequest(path, opts = {}) {
     const json = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
     return { ok: response.ok, status: response.status, json };
   } catch (error) {
+    if (isPageUnloading) {
+      return { ok: false, aborted: true, error };
+    }
     console.error('API request failed:', path, error);
     return { ok: false, error };
   }
+}
+
+async function saveQuoteSnapshot() {
+  if (!localStorage.getItem('jwt_token')) return null;
+  const p = currentProject();
+  if (!p || !p.id || !p._synced) return null;
+
+  const discount = typeof getDiscountData === 'function' ? getDiscountData() : null;
+  const vat = typeof getVatData === 'function' ? getVatData() : null;
+  const result = await apiRequest('/api/quotes', {
+    method: 'POST',
+    body: JSON.stringify({
+      projectId: p.id,
+      client: discount?.client || p.client || '',
+      selections: p.selections || {},
+      multiSel: p.multiSel || {},
+      discount,
+      vat
+    })
+  });
+
+  if (!result.ok || !result.json?.success) {
+    console.warn('Failed to save quote snapshot:', result.json?.error || result.error || result.status);
+    return null;
+  }
+
+  return result.json.quote || null;
 }
 
 async function checkAuth() {
@@ -1265,7 +1397,9 @@ function updateAuthUI() {
       btn.onclick = logout;
     }
     // Менеджер или пользователь без прав на настройки — скрыть вкладку
-    const canSeeSettings = !isManager && hasPermission('settings');
+    const canSeeSettings = isManager
+      ? currentUser.permissions?.settings === true
+      : hasPermission('settings');
     if (btnSettings) btnSettings.style.display = canSeeSettings ? '' : 'none';
     if (!canSeeSettings) {
       const sv = document.getElementById('view-settings');
@@ -1394,6 +1528,8 @@ async function handleLogin(event) {
   updateAuthUI();
   closeLoginModal();
   await loadBackendProjects();
+  await loadPriceCatalog();
+  applyPriceCatalogToAllProjects();
   await syncAllUnsyncedProjects();
   await loadUsers();
   renderAll();
@@ -1443,7 +1579,9 @@ async function loadBackendProjects() {
   if (!localStorage.getItem('jwt_token')) return false;
 
   const localProjects = [];
-  if (loadState()) {
+  const canSyncProjectCards = currentUser?.role !== 'manager';
+  const canImportLocalDrafts = currentUser?.role === 'super_admin';
+  if (canSyncProjectCards && canImportLocalDrafts && loadState()) {
     localProjects.push(...projects.filter(p => !p._synced));
   }
 
@@ -1469,9 +1607,11 @@ async function loadBackendProjects() {
     projects = [...backendProjects, ...mergedLocal];
     deduplicateProjects(); // финальная защита от дублей по имени
     currentProjIdx = 0;
-    saveState();
-    for (const project of projects.filter(p => !p._synced)) {
-      await syncCurrentProject(project);
+    saveState({ sync: false });
+    if (canSyncProjectCards) {
+      for (const project of projects.filter(p => !p._synced)) {
+        await syncCurrentProject(project);
+      }
     }
     return true;
   }
@@ -1482,16 +1622,58 @@ async function loadBackendProjects() {
 async function syncCurrentProject(project) {
   const target = project || currentProject();
   if (!target || !localStorage.getItem('jwt_token')) return;
+  if (target._deleted) return;
 
   if (!target._synced) {
-    await createProjectOnBackend(target);
+    if (target._syncing) return;
+    backendSyncInFlight++;
+    target._syncing = true;
+    try {
+      await createProjectOnBackend(target);
+    } finally {
+      delete target._syncing;
+      backendSyncInFlight = Math.max(0, backendSyncInFlight - 1);
+      saveState({ sync: false });
+    }
     return;
   }
 
-  await updateProjectOnBackend(target);
+  backendSyncInFlight++;
+  try {
+    await updateProjectOnBackend(target);
+  } finally {
+    backendSyncInFlight = Math.max(0, backendSyncInFlight - 1);
+  }
+}
+
+function hasBackendUuid(project) {
+  return typeof project?.id === 'string' && project.id.includes('-');
+}
+
+async function attachExistingBackendProjectByName(project) {
+  if (!project || project._synced || hasBackendUuid(project)) return false;
+  const name = (project.name || '').trim();
+  if (!name) return false;
+
+  const result = await apiRequest('/api/projects', { method: 'GET' });
+  if (!result.ok || !result.json.success || !Array.isArray(result.json.projects)) return false;
+
+  const existing = result.json.projects.find(bp => (bp.name || '').trim() === name);
+  if (!existing) return false;
+
+  Object.assign(project, normalizeProjectForClient(existing));
+  saveState({ sync: false });
+  return true;
 }
 
 async function createProjectOnBackend(project) {
+  if (project?._deleted) return;
+  if (currentUser?.role === 'manager') {
+    project._dirty = true;
+    throw new Error('Project creation is not allowed for manager');
+  }
+  if (await attachExistingBackendProjectByName(project)) return;
+
   const body = {
     name: project.name,
     code: project.code,
@@ -1517,16 +1699,22 @@ async function createProjectOnBackend(project) {
   });
   if (!result.ok || !result.json.success) {
     console.warn('Failed to sync new project:', result.json.error || result.error);
-    return;
+    project._dirty = true;
+    throw new Error(result.json.error || result.error || 'Failed to create project');
   }
 
-  project.id = result.json.project.id;
+  const localVersions = Array.isArray(project.versions) ? project.versions : [];
+  Object.assign(project, normalizeProjectForClient(result.json.project));
+  project.versions = localVersions;
   project._synced = true;
-  saveState();
+  project._dirty = false;
+  saveState({ sync: false });
+  return true;
 }
 
 async function updateProjectOnBackend(project) {
   if (!project.id) return;
+  if (project._deleted) return;
 
   const body = {
     name: project.name,
@@ -1547,7 +1735,22 @@ async function updateProjectOnBackend(project) {
   });
   if (!result.ok || !result.json.success) {
     console.warn('Failed to update project:', result.json.error || result.error);
+    project._dirty = true;
+    localEditHoldUntil = Date.now() + 10000;
+    throw new Error(result.json.error || result.error || 'Failed to update project');
   }
+  if (result.json.project) {
+    const localVersions = Array.isArray(project.versions) ? project.versions : [];
+    Object.assign(project, normalizeProjectForClient(result.json.project));
+    project.versions = localVersions;
+  } else {
+    project.updated_at = Math.floor(Date.now() / 1000);
+    project.updatedAt = project.updated_at;
+  }
+  project._synced = true;
+  project._dirty = false;
+  saveState({ sync: false });
+  return true;
 }
 
 async function deleteProjectFromBackend(project) {
@@ -1558,6 +1761,7 @@ async function deleteProjectFromBackend(project) {
 
 async function syncAllUnsyncedProjects() {
   if (!localStorage.getItem('jwt_token')) return;
+  if (currentUser?.role !== 'super_admin') return;
   for (const project of projects) {
     if (!project._synced) {
       await createProjectOnBackend(project);
@@ -1569,14 +1773,45 @@ async function syncAllProjects() {
   if (!localStorage.getItem('jwt_token')) return;
   const btn = document.getElementById('saveAllBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Сохраняю...'; }
+  const failed = [];
   try {
     for (const project of projects) {
-      await syncCurrentProject(project);
+      try {
+        await syncCurrentProject(project);
+      } catch (error) {
+        failed.push(project?.name || project?.id || 'project');
+        console.warn('Failed to sync project:', project?.name || project?.id, error);
+      }
+    }
+    if (failed.length) {
+      if (btn) { btn.textContent = '⚠ Ошибка'; setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Сохранить'; }, 2000); }
+      return false;
     }
     if (btn) { btn.textContent = '✅ Сохранено'; setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Сохранить'; }, 2000); }
+    return true;
   } catch(e) {
     if (btn) { btn.textContent = '⚠ Ошибка'; setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Сохранить'; }, 2000); }
+    return false;
   }
+}
+
+async function syncDirtyProjects() {
+  if (!localStorage.getItem('jwt_token')) return false;
+  const dirty = projects.filter(p => p && (p._dirty || !p._synced));
+  let ok = true;
+  for (const project of dirty) {
+    try {
+      await syncCurrentProject(project);
+    } catch (error) {
+      ok = false;
+      console.warn('Auto-sync failed:', project?.name || project?.id, error);
+    }
+  }
+  return ok;
+}
+
+function hasPendingLocalProjectChanges() {
+  return projects.some(p => p && (p._dirty || p._syncing));
 }
 
 // ── CROSS-BROWSER POLLING (sync every 30s) ──
@@ -1594,26 +1829,49 @@ function stopBackendPolling() {
 async function pollBackendForChanges() {
   if (!localStorage.getItem('jwt_token') || !currentUser) return;
   if (backendSyncTimer !== null) return; // skip if local save is pending
+  if (backendSyncInFlight > 0) return;
+  if (hasPendingLocalProjectChanges()) return;
+  if (Date.now() < localEditHoldUntil) return;
+  if (isUserEditingSettingsForm()) return;
 
   const result = await apiRequest('/api/projects', { method: 'GET' });
   if (!result.ok || !result.json.success || !Array.isArray(result.json.projects)) return;
 
-  const bp = result.json.projects;
-
-  // Compare: count of synced projects + max updated_at
-  const syncedLocal = projects.filter(p => p._synced);
-  const backendMax = bp.reduce((m, p) => Math.max(m, p.updated_at || 0), 0);
-  const localMax  = syncedLocal.reduce((m, p) => Math.max(m, p.updated_at || 0), 0);
-
-  if (bp.length === syncedLocal.length && backendMax <= localMax) return; // nothing changed
-
-  // Reload: preserve current project selection by id
   const savedId = projects[currentProjIdx]?.id;
-  const backendNorm = bp.map(normalizeProjectForClient);
-  const unsyncedLocal = projects.filter(p =>
-    !p._synced && !backendNorm.some(b => (b.name||'').trim() === (p.name||'').trim())
-  );
-  projects = [...backendNorm, ...unsyncedLocal];
+  const backendById = new Map(result.json.projects.map(p => [String(p.id), normalizeProjectForClient(p)]));
+  const merged = [];
+  let changed = false;
+
+  for (const localProject of projects) {
+    if (!localProject?._synced) {
+      merged.push(localProject);
+      continue;
+    }
+
+    const backendProject = backendById.get(String(localProject.id));
+    if (!backendProject) {
+      changed = true;
+      continue;
+    }
+
+    backendById.delete(String(localProject.id));
+    if ((backendProject.updated_at || 0) > (localProject.updated_at || 0)) {
+      backendProject.versions = Array.isArray(localProject.versions) ? localProject.versions : backendProject.versions;
+      merged.push(backendProject);
+      changed = true;
+    } else {
+      merged.push(localProject);
+    }
+  }
+
+  for (const backendProject of backendById.values()) {
+    merged.push(backendProject);
+    changed = true;
+  }
+
+  if (!changed) return;
+
+  projects = merged;
   deduplicateProjects();
   const newIdx = projects.findIndex(p => p.id === savedId);
   currentProjIdx = newIdx >= 0 ? newIdx : 0;
@@ -1705,12 +1963,15 @@ function updateScrollArrows() {
 }
 
 function switchProject(idx) {
-  updateProjDropdown();
-  currentProjIdx = idx;
+  const nextIdx = Number.isFinite(idx)
+    ? Math.max(0, Math.min(idx, projects.length - 1))
+    : 0;
+  currentProjIdx = nextIdx;
   // Сбрасываем индексы слайдов, чтобы новая вкладка показывала свои фото с первого
   slideIdx = 0;
   if (typeof planSlideIdx !== 'undefined') planSlideIdx = 0;
   renderProjectButtons();
+  updateProjDropdown();
   renderAll();
   // Если сейчас открыт раздел «Настройки» — перерисовать его редакторы
   // под данные нового активного проекта (фото, спеки, смета, форма проекта)
@@ -1841,12 +2102,16 @@ function deleteProjectAt(idx) {
   btn.onclick = async function() {
     overlay.classList.remove('show');
     const project = projects[idx];
+    if (!project) return;
+    project._deleted = true;
+    cancelPendingBackendSync();
+    await waitForProjectSyncIdle(project);
     if (localStorage.getItem('jwt_token')) {
       await deleteProjectFromBackend(project);
     }
     projects.splice(idx, 1);
     if (currentProjIdx >= projects.length) currentProjIdx = projects.length - 1;
-    saveState();
+    saveState({ sync: false });
     renderProjectButtons();
     renderAll();
     switchView('project');
@@ -1917,7 +2182,7 @@ function switchView(view) {
 let slideIdx = 0;
 function renderSlider() {
   const p = currentProject();
-  const imgs = p.images || [];
+  const imgs = p?.images || [];
   slideIdx = Math.min(slideIdx, Math.max(0, imgs.length-1));
   const track = document.getElementById('sliderTrack');
   const dots = document.getElementById('slideDots');
@@ -1926,7 +2191,8 @@ function renderSlider() {
   track.style.transform = `translateX(-${slideIdx*100}%)`;
 }
 function goSlide(n) {
-  const len = currentProject().images?.length||0;
+  const len = currentProject()?.images?.length||0;
+  if (!len) return;
   slideIdx = (n+len)%len;
   document.getElementById('sliderTrack').style.transform=`translateX(-${slideIdx*100}%)`;
   document.querySelectorAll('.slide-dot').forEach((d,i)=>d.classList.toggle('on',i===slideIdx));
@@ -1942,7 +2208,7 @@ setInterval(()=>{ if(document.getElementById('view-project').style.display!=='no
 let planSlideIdx = 0;
 function renderPlan() {
   const p = currentProject();
-  const imgs = p.planImages || (p.planImage ? [p.planImage] : []);
+  const imgs = p?.planImages || (p?.planImage ? [p.planImage] : []);
   planSlideIdx = Math.min(planSlideIdx, Math.max(0, imgs.length - 1));
   const ph = document.getElementById('planPlaceholder');
   const track = document.getElementById('planSliderTrack');
@@ -1966,7 +2232,7 @@ function renderPlan() {
 }
 function goPlanSlide(n) {
   const p = currentProject();
-  const imgs = p.planImages || (p.planImage ? [p.planImage] : []);
+  const imgs = p?.planImages || (p?.planImage ? [p.planImage] : []);
   const len = imgs.length || 1;
   planSlideIdx = (n + len) % len;
   const track = document.getElementById('planSliderTrack');
@@ -1984,7 +2250,7 @@ setInterval(() => { if (document.getElementById('view-project').style.display !=
 function renderSpecs() {
   const p = currentProject();
   const body = document.getElementById('specsBody');
-  body.innerHTML = (p.specs||[]).map(s=>`
+  body.innerHTML = (p?.specs||[]).map(s=>`
     <div class="spec-row">
       <span class="spec-name">${s.name}</span>
       <span class="spec-val">${s.val}<span class="spec-unit">${s.unit}</span></span>
@@ -1994,11 +2260,28 @@ function renderSpecs() {
 // ========================================
 // ESTIMATE
 // ========================================
+function isSkipOption(opt) {
+  const name = String(opt?.name || '').toLowerCase();
+  const hasNoPrice = (parseFloat(opt?.price) || 0) === 0;
+  const hasNoItems = !Array.isArray(opt?.items) || opt.items.length === 0;
+  return !!opt && hasNoPrice && hasNoItems && (
+    opt.id === 'none' ||
+    name.includes('не включать')
+  );
+}
+
+function getSelectableOptions(group) {
+  return (group?.options || []).filter(opt => !isSkipOption(opt));
+}
+
 function renderEstimate() {
   const p = currentProject();
-  const config = p.configData;
   const tbody = document.getElementById('estBody');
   tbody.innerHTML = '';
+  if (!p) return;
+  p.selections = (p.selections && typeof p.selections === 'object') ? p.selections : {};
+  p.multiSel = (p.multiSel && typeof p.multiSel === 'object') ? p.multiSel : {};
+  const config = Array.isArray(p.configData) ? p.configData : [];
 
   config.forEach(group => {
     const tr = document.createElement('tr');
@@ -2007,7 +2290,11 @@ function renderEstimate() {
     tbody.appendChild(tr);
 
     if (group.type === 'radio') {
-      const sel = p.selections[group.id] || '';
+      const rawSel = p.selections[group.id] || '';
+      const rawSelOpt = group.options.find(o=>o.id===rawSel);
+      const sel = rawSelOpt && isSkipOption(rawSelOpt) ? '' : rawSel;
+      if (rawSel && !sel) p.selections[group.id] = '';
+      const selectableOptions = getSelectableOptions(group);
       const tr2 = document.createElement('tr');
       tr2.className = 'item-row';
       const selOpt = group.options.find(o=>o.id===sel);
@@ -2018,7 +2305,7 @@ function renderEstimate() {
         <td class="opt-cell">
           <select class="select-opt" onchange="setRadio('${group.id}',this.value)">
             <option value="">— Выберите —</option>
-            ${group.options.map(o=>`<option value="${o.id}" ${o.id===sel?'selected':''}>${o.name}</option>`).join('')}
+            ${selectableOptions.map(o=>`<option value="${o.id}" ${o.id===sel?'selected':''}>${o.name}</option>`).join('')}
           </select>
         </td>
         <td class="price-cell">${price>0?fmtP(priceWithOH):'—'}</td>`;
@@ -2089,7 +2376,7 @@ function getGroupPrice(group) {
     const sel = p.selections[group.id];
     if (!sel) return 0;
     const opt = group.options.find(o=>o.id===sel);
-    if (!opt) return 0;
+    if (!opt || isSkipOption(opt)) return 0;
     return calcOptPrice(opt);
   } else {
     const ms = p.multiSel[group.id]||{};
@@ -2102,7 +2389,9 @@ function getSelectedLabel(group) {
   if (group.type==='radio') {
     const sel = p.selections[group.id];
     if (!sel) return '—';
-    return group.options.find(o=>o.id===sel)?.name||'—';
+    const opt = group.options.find(o=>o.id===sel);
+    if (!opt || isSkipOption(opt)) return '—';
+    return opt.name || '—';
   } else {
     const ms = p.multiSel[group.id]||{};
     const names = group.options.filter(o=>ms[o.id]).map(o=>o.name);
@@ -2131,6 +2420,363 @@ function updateSummary() {
 
 function fmtP(n) {
   return Math.round(n).toLocaleString('ru-RU') + ' ₽';
+}
+
+// ========================================
+// PRICE CATALOG
+// ========================================
+function canManagePriceCatalog() {
+  return currentUser?.role === 'super_admin';
+}
+
+function normalizeCatalogText(value) {
+  return String(value ?? '').trim();
+}
+
+function catalogItemKey(section, name, unit) {
+  return [
+    normalizeCatalogText(section).toLowerCase(),
+    normalizeCatalogText(name).toLowerCase(),
+    normalizeCatalogText(unit).toLowerCase()
+  ].join('|');
+}
+
+function parseCatalogNumber(value) {
+  return parseFloat(String(value ?? '').replace(/\s/g, '').replace(',', '.')) || 0;
+}
+
+function getCatalogCellValue(cell) {
+  let value = cell?.value;
+  if (value && typeof value === 'object' && value.result !== undefined) value = value.result;
+  if (value && typeof value === 'object' && value.text !== undefined) value = value.text;
+  if (value && typeof value === 'object' && Array.isArray(value.richText)) {
+    value = value.richText.map(part => part.text || '').join('');
+  }
+  return value;
+}
+
+function setCatalogStatus(message, isError = false) {
+  const el = document.getElementById('catalogStatus');
+  if (!el) return;
+  el.textContent = message || '';
+  el.style.color = isError ? '#b3261e' : '#2c3a2e';
+}
+
+function collectPriceCatalogFromProjects() {
+  const byKey = new Map();
+  (projects || []).forEach(project => {
+    (project.configData || []).forEach(group => {
+      getSelectableOptions(group).forEach(opt => {
+        if (opt.items && opt.items.length) {
+          opt.items.forEach(item => {
+            const section = normalizeCatalogText(group.title);
+            const name = normalizeCatalogText(item.n);
+            const unit = normalizeCatalogText(item.u || 'шт.');
+            if (!section || !name) return;
+            const key = catalogItemKey(section, name, unit);
+            if (!byKey.has(key)) {
+              byKey.set(key, {
+                id: 'pc_' + Math.random().toString(36).slice(2, 10),
+                section,
+                option: normalizeCatalogText(opt.name),
+                name,
+                unit,
+                price: parseCatalogNumber(item.p)
+              });
+            }
+          });
+        } else {
+          const section = normalizeCatalogText(group.title);
+          const name = normalizeCatalogText(opt.name);
+          const unit = 'вариант';
+          if (!section || !name) return;
+          const key = catalogItemKey(section, name, unit);
+          if (!byKey.has(key)) {
+            byKey.set(key, {
+              id: 'pc_' + Math.random().toString(36).slice(2, 10),
+              section,
+              option: normalizeCatalogText(opt.name),
+              name,
+              unit,
+              price: parseCatalogNumber(opt.price)
+            });
+          }
+        }
+      });
+    });
+  });
+
+  return {
+    version: 1,
+    updatedAt: Date.now(),
+    items: Array.from(byKey.values()).sort((a, b) =>
+      a.section.localeCompare(b.section, 'ru') ||
+      a.name.localeCompare(b.name, 'ru') ||
+      a.unit.localeCompare(b.unit, 'ru')
+    )
+  };
+}
+
+async function loadPriceCatalog() {
+  if (!canManagePriceCatalog() || !localStorage.getItem('jwt_token')) return false;
+
+  const result = await apiRequest('/api/settings', { method: 'GET' });
+  const value = result.json?.settings?.[PRICE_CATALOG_KEY];
+  if (!result.ok || !result.json?.success || !value) {
+    priceCatalog = priceCatalog?.items?.length ? priceCatalog : { version: 1, updatedAt: 0, items: [] };
+    return false;
+  }
+
+  priceCatalog = {
+    version: value.version || 1,
+    updatedAt: value.updatedAt || 0,
+    items: Array.isArray(value.items) ? value.items : []
+  };
+  return true;
+}
+
+async function savePriceCatalog() {
+  if (!canManagePriceCatalog() || !localStorage.getItem('jwt_token')) return false;
+  priceCatalog.updatedAt = Date.now();
+  const result = await apiRequest('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify({ key: PRICE_CATALOG_KEY, value: priceCatalog })
+  });
+  return result.ok && result.json?.success;
+}
+
+function applyPriceCatalogToProject(project) {
+  if (!project || !Array.isArray(priceCatalog.items) || !priceCatalog.items.length) return false;
+
+  const prices = new Map();
+  priceCatalog.items.forEach(item => {
+    prices.set(catalogItemKey(item.section, item.name, item.unit), parseCatalogNumber(item.price));
+  });
+
+  let changed = false;
+  (project.configData || []).forEach(group => {
+    getSelectableOptions(group).forEach(opt => {
+      if (opt.items && opt.items.length) {
+        let optionTotal = 0;
+        opt.items.forEach(item => {
+          const key = catalogItemKey(group.title, item.n, item.u || 'шт.');
+          if (prices.has(key)) {
+            const nextPrice = prices.get(key);
+            if ((parseCatalogNumber(item.p)) !== nextPrice) {
+              item.p = nextPrice;
+              changed = true;
+            }
+          }
+          optionTotal += (parseCatalogNumber(item.p) || 0) * (parseCatalogNumber(item.q) || 0);
+        });
+        if ((parseCatalogNumber(opt.price)) !== optionTotal) {
+          opt.price = optionTotal;
+          changed = true;
+        }
+      } else {
+        const key = catalogItemKey(group.title, opt.name, 'вариант');
+        if (prices.has(key)) {
+          const nextPrice = prices.get(key);
+          if ((parseCatalogNumber(opt.price)) !== nextPrice) {
+            opt.price = nextPrice;
+            changed = true;
+          }
+        }
+      }
+    });
+  });
+
+  return changed;
+}
+
+function applyPriceCatalogToAllProjects() {
+  let changed = 0;
+  (projects || []).forEach(project => {
+    if (applyPriceCatalogToProject(project)) changed++;
+  });
+  return changed;
+}
+
+function renderPriceCatalog() {
+  const wrap = document.getElementById('priceCatalogEditor');
+  if (!wrap) return;
+
+  if (!canManagePriceCatalog()) {
+    wrap.innerHTML = '<div style="color:#888;font-size:12px;padding:8px">Справочник доступен только супер-администратору.</div>';
+    return;
+  }
+
+  if (!priceCatalog.items || !priceCatalog.items.length) {
+    wrap.innerHTML = '<div style="color:#888;font-size:12px;padding:8px">Справочник пуст. Нажмите «Собрать из проектов».</div>';
+    return;
+  }
+
+  let lastSection = '';
+  wrap.innerHTML = `
+    <div style="display:grid;grid-template-columns:22px 1.2fr 1fr 2fr 90px 120px;gap:6px;margin-bottom:6px;align-items:center">
+      <div></div>
+      <div style="font-size:10px;color:#888;font-weight:600">РАЗДЕЛ</div>
+      <div style="font-size:10px;color:#888;font-weight:600">ВАРИАНТ</div>
+      <div style="font-size:10px;color:#888;font-weight:600">ПОЗИЦИЯ</div>
+      <div style="font-size:10px;color:#888;font-weight:600">ЕД.</div>
+      <div style="font-size:10px;color:#888;font-weight:600">ЦЕНА</div>
+    </div>
+    ${priceCatalog.items.map((item, i) => {
+      const showSection = item.section !== lastSection;
+      lastSection = item.section;
+      return `
+        <div style="display:grid;grid-template-columns:22px 1.2fr 1fr 2fr 90px 120px;gap:6px;margin-bottom:5px;align-items:center">
+          <button class="btn-del-row" type="button" onclick="removeCatalogItem(${i})">×</button>
+          <div style="font-size:11px;font-weight:${showSection ? 700 : 400};color:#3a4a3c">${showSection ? escapeHtml(item.section) : ''}</div>
+          <div style="font-size:11px;color:#666">${escapeHtml(item.option || '')}</div>
+          <div style="font-size:11px;color:#222">${escapeHtml(item.name || '')}</div>
+          <div style="font-size:11px;color:#666">${escapeHtml(item.unit || '')}</div>
+          <input type="number" min="0" step="0.01" value="${parseCatalogNumber(item.price)}" oninput="updateCatalogPrice(${i},this.value)" style="width:100%;padding:5px 7px;border:1px solid #ddd;border-radius:4px;font-size:11px;text-align:right">
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function refreshPriceCatalogEditor() {
+  renderPriceCatalog();
+  if (!canManagePriceCatalog() || !localStorage.getItem('jwt_token')) return;
+  loadPriceCatalog().then(loaded => {
+    if (loaded && activeSettingsTab === 'catalog') {
+      applyPriceCatalogToAllProjects();
+      renderPriceCatalog();
+    }
+  }).catch(err => {
+    setCatalogStatus('⚠ Не удалось загрузить справочник: ' + err.message, true);
+  });
+}
+
+async function rebuildPriceCatalogFromProjects() {
+  if (!canManagePriceCatalog()) return;
+  priceCatalog = collectPriceCatalogFromProjects();
+  renderPriceCatalog();
+  const saved = await savePriceCatalog();
+  setCatalogStatus(saved
+    ? `✅ Справочник собран: ${priceCatalog.items.length} позиций.`
+    : '⚠ Справочник собран локально, но не сохранён на сервере.', !saved);
+}
+
+async function applyPriceCatalogAndSaveProjects() {
+  if (!canManagePriceCatalog()) return;
+  if (!priceCatalog.items || !priceCatalog.items.length) {
+    setCatalogStatus('⚠ Справочник пуст. Сначала соберите или импортируйте позиции.', true);
+    return;
+  }
+  const changed = applyPriceCatalogToAllProjects();
+  saveState();
+  renderAll();
+  renderPriceCatalog();
+  const savedCatalog = await savePriceCatalog();
+  const savedProjects = await syncAllProjects();
+  setCatalogStatus(`✅ Цены применены. Обновлено проектов: ${changed}. Справочник ${savedCatalog ? 'сохранён' : 'не удалось сохранить'}. Проекты ${savedProjects ? 'сохранены' : 'не сохранены'}.`, !savedCatalog || !savedProjects);
+}
+
+function updateCatalogPrice(index, value) {
+  if (!priceCatalog.items || !priceCatalog.items[index]) return;
+  priceCatalog.items[index].price = parseCatalogNumber(value);
+  priceCatalog.updatedAt = Date.now();
+  setCatalogStatus('Есть несохранённые изменения. Нажмите «Применить ко всем проектам».');
+}
+
+function removeCatalogItem(index) {
+  if (!priceCatalog.items || !priceCatalog.items[index]) return;
+  priceCatalog.items.splice(index, 1);
+  priceCatalog.updatedAt = Date.now();
+  renderPriceCatalog();
+  setCatalogStatus('Позиция удалена из справочника. Нажмите «Применить ко всем проектам», чтобы сохранить изменения.');
+}
+
+async function exportPriceCatalog() {
+  if (!priceCatalog.items || !priceCatalog.items.length) {
+    priceCatalog = collectPriceCatalogFromProjects();
+    renderPriceCatalog();
+  }
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'КОНДА';
+  wb.created = new Date();
+  const ws = wb.addWorksheet('Справочник');
+  ws.columns = [
+    {header:'Раздел', key:'section', width:26},
+    {header:'Вариант', key:'option', width:30},
+    {header:'Наименование позиции', key:'name', width:46},
+    {header:'Ед.', key:'unit', width:10},
+    {header:'Цена, руб.', key:'price', width:14}
+  ];
+  ws.getRow(1).eachCell(cell => {
+    cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF3a4a3c'}};
+    cell.font = {bold:true, color:{argb:'FFd8e4d8'}};
+  });
+  priceCatalog.items.forEach(item => ws.addRow({
+    section: item.section || '',
+    option: item.option || '',
+    name: item.name || '',
+    unit: item.unit || '',
+    price: parseCatalogNumber(item.price)
+  }));
+  ws.getColumn('E').numFmt = '#,##0.00';
+  const dateStr = new Date().toLocaleDateString('ru-RU').replace(/\./g,'-');
+  await _saveWorkbookAs(wb, `КОНДА_Справочник_цен_${dateStr}.xlsx`);
+  setCatalogStatus(`✅ Справочник выгружен: ${priceCatalog.items.length} позиций.`);
+}
+
+function importPriceCatalog(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(e.target.result);
+      const ws = wb.getWorksheet('Справочник') || wb.worksheets[0];
+      if (!ws) throw new Error('В файле нет листов');
+
+      const items = [];
+      ws.eachRow((row, ri) => {
+        if (ri === 1) return;
+        const section = normalizeCatalogText(getCatalogCellValue(row.getCell(1)));
+        const option = normalizeCatalogText(getCatalogCellValue(row.getCell(2)));
+        const name = normalizeCatalogText(getCatalogCellValue(row.getCell(3)));
+        const unit = normalizeCatalogText(getCatalogCellValue(row.getCell(4)) || 'шт.');
+        const price = parseCatalogNumber(getCatalogCellValue(row.getCell(5)));
+        if (!section || !name) return;
+        items.push({
+          id: 'pc_' + Math.random().toString(36).slice(2, 10),
+          section,
+          option,
+          name,
+          unit,
+          price
+        });
+      });
+
+      priceCatalog = {
+        version: 1,
+        updatedAt: Date.now(),
+        items: items.sort((a, b) =>
+          a.section.localeCompare(b.section, 'ru') ||
+          a.name.localeCompare(b.name, 'ru') ||
+          a.unit.localeCompare(b.unit, 'ru')
+        )
+      };
+
+      renderPriceCatalog();
+      const changed = applyPriceCatalogToAllProjects();
+      saveState();
+      renderAll();
+      const savedCatalog = await savePriceCatalog();
+      const savedProjects = await syncAllProjects();
+      setCatalogStatus(`✅ Импортировано позиций: ${items.length}. Цены применены к проектам: ${changed}. Проекты ${savedProjects ? 'сохранены' : 'не сохранены'}.`, !savedCatalog || !savedProjects);
+    } catch (err) {
+      setCatalogStatus('⚠ Ошибка импорта справочника: ' + err.message, true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ========================================
@@ -2273,8 +2919,9 @@ function updateSumNote() {
 // ========================================
 let activeSettingsTab = 'photos';
 function showSettingsTab(tab, btn) {
+  if (tab === 'catalog' && !canManagePriceCatalog()) tab = 'photos';
   activeSettingsTab = tab;
-  ['photos','specs','estimate','project','users'].forEach(t => {
+  ['photos','specs','estimate','catalog','project','users'].forEach(t => {
     const content = document.getElementById(`stab-${t}-content`);
     if (content) content.style.display = t===tab?'block':'none';
     const b = document.getElementById(`stab-${t}`);
@@ -2283,6 +2930,7 @@ function showSettingsTab(tab, btn) {
 
   if (tab === 'project') renderProjectForm();
   if (tab === 'estimate') renderConfigEditor();
+  if (tab === 'catalog') refreshPriceCatalogEditor();
   if (tab === 'users') loadUsers();
 }
 
@@ -2292,8 +2940,10 @@ function renderSettings() {
   renderSpecsEditor();
   applySettingsTabPermissions();
   showUsersTab();
+  showCatalogTab();
   if (activeSettingsTab === 'project') renderProjectForm();
   if (activeSettingsTab === 'estimate') renderConfigEditor();
+  if (activeSettingsTab === 'catalog') refreshPriceCatalogEditor();
   if (activeSettingsTab === 'users') loadUsers();
   updateTitleBars();
 }
@@ -2302,17 +2952,33 @@ function applySettingsTabPermissions() {
   const map = {
     'stab-specs':     'editSpecs',
     'stab-estimate':  'editEstimate',
+    'stab-catalog':   'managePriceCatalog',
     'stab-photos':    'editPhotos',
     'stab-project':   'editProject',
     'stab-users':     'manageUsers'
   };
   Object.entries(map).forEach(([tabId, perm]) => {
     const btn = document.getElementById(tabId);
-    if (btn) btn.style.display = hasPermission(perm) ? '' : 'none';
+    if (!btn) return;
+    if (perm === 'managePriceCatalog') {
+      btn.style.display = canManagePriceCatalog() ? '' : 'none';
+    } else {
+      btn.style.display = hasPermission(perm) ? '' : 'none';
+    }
   });
   // If current active tab got hidden, switch to photos
   const activeBtn = document.getElementById(`stab-${activeSettingsTab}`);
   if (activeBtn && activeBtn.style.display === 'none') {
+    showSettingsTab('photos', document.getElementById('stab-photos'));
+  }
+}
+
+function showCatalogTab() {
+  const btn = document.getElementById('stab-catalog');
+  if (btn) btn.style.display = canManagePriceCatalog() ? '' : 'none';
+  const content = document.getElementById('stab-catalog-content');
+  if (!canManagePriceCatalog() && content) content.style.display = 'none';
+  if (!canManagePriceCatalog() && activeSettingsTab === 'catalog') {
     showSettingsTab('photos', document.getElementById('stab-photos'));
   }
 }
@@ -2420,37 +3086,52 @@ function removePlanImage(idx) {
 function renderSpecsEditor() {
   const p = currentProject();
   const ed = document.getElementById('specsEditor');
-  const last = (p.specs||[]).length - 1;
-  ed.innerHTML = (p.specs||[]).map((s,i)=>`
+  if (!ed) return;
+  if (!p) {
+    ed.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px">Нет активного проекта</div>';
+    return;
+  }
+  if (!Array.isArray(p.specs)) p.specs = [];
+  const last = p.specs.length - 1;
+  ed.innerHTML = p.specs.map((s,i)=>`
     <div class="spec-edit-row">
       <div class="move-btns">
         <button class="btn-move" onclick="moveSpec(${i},-1)" ${i===0?'disabled':''} title="Переместить вверх">▲</button>
         <button class="btn-move" onclick="moveSpec(${i},1)" ${i===last?'disabled':''} title="Переместить вниз">▼</button>
       </div>
-      <input type="text" value="${s.name}" placeholder="Наименование" oninput="updateSpec(${i},'name',this.value)">
-      <input type="text" value="${s.val}" placeholder="Значение" oninput="updateSpec(${i},'val',this.value)">
-      <input type="text" value="${s.unit}" placeholder="Ед." oninput="updateSpec(${i},'unit',this.value)">
+      <input type="text" value="${escapeHtml(s.name || '')}" placeholder="Наименование" oninput="updateSpec(${i},'name',this.value)">
+      <input type="text" value="${escapeHtml(s.val || '')}" placeholder="Значение" oninput="updateSpec(${i},'val',this.value)">
+      <input type="text" value="${escapeHtml(s.unit || '')}" placeholder="Ед." oninput="updateSpec(${i},'unit',this.value)">
       <button class="btn-del-spec" onclick="deleteSpec(${i})">×</button>
     </div>`).join('');
 }
 
 function updateSpec(idx, field, val) {
   const p = currentProject();
+  if (!p) return;
+  if (!Array.isArray(p.specs)) p.specs = [];
+  if (!p.specs[idx]) p.specs[idx] = { name: '', val: '', unit: '' };
   p.specs[idx][field] = val;
+  localEditHoldUntil = Date.now() + 5000;
   saveState();
   renderSpecs();
 }
 
 function addSpecRow() {
   const p = currentProject();
+  if (!p) return;
+  if (!Array.isArray(p.specs)) p.specs = [];
   p.specs.push({name:'', val:'', unit:''});
+  localEditHoldUntil = Date.now() + 5000;
   saveState();
   renderSpecsEditor();
 }
 
 function deleteSpec(idx) {
   const p = currentProject();
+  if (!p || !Array.isArray(p.specs)) return;
   p.specs.splice(idx,1);
+  localEditHoldUntil = Date.now() + 5000;
   saveState();
   renderSpecsEditor();
   renderSpecs();
@@ -2458,10 +3139,12 @@ function deleteSpec(idx) {
 
 function moveSpec(idx, dir) {
   const p = currentProject();
+  if (!p || !Array.isArray(p.specs)) return;
   const specs = p.specs;
   const target = idx + dir;
   if (target < 0 || target >= specs.length) return;
   [specs[idx], specs[target]] = [specs[target], specs[idx]];
+  localEditHoldUntil = Date.now() + 5000;
   saveState();
   renderSpecsEditor();
   renderSpecs();
@@ -2486,9 +3169,15 @@ function importExcel(input) {
 // ========================================
 async function exportExcel() {
   const p = currentProject();
+  const quoteSavePromise = saveQuoteSnapshot().catch(error => {
+    console.warn('Quote snapshot save skipped:', error);
+    return null;
+  });
   const config = p.configData;
   const wb = new ExcelJS.Workbook();
   wb.creator = 'КОНДА'; wb.created = new Date();
+  wb.calcProperties = wb.calcProperties || {};
+  wb.calcProperties.fullCalcOnLoad = true;
   const ws = wb.addWorksheet('Смета для клиента');
 
   // Цвета точно по образцу
@@ -2728,11 +3417,25 @@ async function exportExcel() {
   });
   ws.getRow(r).height = 16.05; r++;
 
-  let itemNum = 1; let sectionNum = 0; const totRefs = [];
+  const optionItemsForExport = (opt) => {
+    const items = Array.isArray(opt?.items) ? opt.items.filter(it => (it.n||'').trim() || parseFloat(it.p) || parseFloat(it.q)) : [];
+    if (items.length) return items;
+    const price = calcOptPrice(opt);
+    return price > 0 ? [{ n: opt?.name || 'Комплектация', u: 'компл.', q: 1, p: price }] : [];
+  };
+
+  let itemNum = 1; let sectionNum = 0; const totRefs = []; const totValues = [];
 
   const addSection = (title, items) => {
     if (!items?.length) return;
     sectionNum++;
+    const sectionSubtotal = items.reduce((s, it) => {
+      const qty = parseFloat(it.q)||0;
+      const price = parseFloat(it.p)||0;
+      return s + qty * price;
+    }, 0);
+    const overhead = sectionSubtotal * 0.25;
+    const sectionTotal = sectionSubtotal + overhead;
 
     // Заголовок раздела
     ws.mergeCells(`A${r}:F${r}`);
@@ -2771,13 +3474,16 @@ async function exportExcel() {
 
       // F — Сумма (формула)
       const cF = ws.getCell(`F${r}`);
-      cF.value = {formula: `D${r}*E${r}`};
+      const qty = parseFloat(it.q)||0;
+      const price = parseFloat(it.p)||0;
+      cF.value = {formula: `D${r}*E${r}`, result: qty * price};
       cF.fill = fill(bg); cF.font = fnt(C.black, false, 10);
       cF.alignment = al('right'); cF.numFmt = numFmt;
 
       itemNum++; r++;
     });
     const endR = r - 1;
+    const subtotalFormula = startR <= endR ? `SUM(F${startR}:F${endR})` : '0';
 
     // Итого по разделу (без накладных)
     ws.mergeCells(`A${r}:E${r}`);
@@ -2786,7 +3492,7 @@ async function exportExcel() {
       fill: fill(C.lightBrown), font: fnt(C.white, true, 10), alignment: al('left')
     });
     const sfF = ws.getCell(`F${r}`);
-    sfF.value = {formula: `SUM(F${startR}:F${endR})`};
+    sfF.value = {formula: subtotalFormula, result: sectionSubtotal};
     sfF.fill = fill(C.lightBrown); sfF.font = fnt(C.white, true, 10);
     sfF.alignment = al('right'); sfF.numFmt = numFmt;
     ws.getRow(r).height = 14.4; const subR = r; r++;
@@ -2798,7 +3504,7 @@ async function exportExcel() {
       fill: fill(C.softTan), font: fnt(C.white, true, 10), alignment: al('left')
     });
     const ofF = ws.getCell(`F${r}`);
-    ofF.value = {formula: `F${subR}*0.25`};
+    ofF.value = {formula: `F${subR}*0.25`, result: overhead};
     ofF.fill = fill(C.softTan); ofF.font = fnt(C.white, true, 10);
     ofF.alignment = al('right'); ofF.numFmt = numFmt;
     ws.getRow(r).height = 14.4; const ovR = r; r++;
@@ -2810,10 +3516,10 @@ async function exportExcel() {
       fill: fill(C.darkBrown), font: fnt(C.gold, true, 11), alignment: al('left')
     });
     const stF = ws.getCell(`F${r}`);
-    stF.value = {formula: `F${subR}+F${ovR}`};
+    stF.value = {formula: `F${subR}+F${ovR}`, result: sectionTotal};
     stF.fill = fill(C.darkBrown); stF.font = fnt(C.gold, true, 10);
     stF.alignment = al('right'); stF.numFmt = numFmt;
-    ws.getRow(r).height = 17.55; totRefs.push(`F${r}`); r++;
+    ws.getRow(r).height = 17.55; totRefs.push(`F${r}`); totValues.push(sectionTotal); r++;
 
     // Пустая строка между разделами
     ws.getRow(r).height = 9.6; r++;
@@ -2824,15 +3530,27 @@ async function exportExcel() {
       const selId = p.selections[group.id];
       if (!selId || selId === 'none') return;
       const opt = group.options.find(o => o.id === selId);
-      if (!opt?.items?.length) return;
-      addSection(group.title, opt.items);
+      const items = optionItemsForExport(opt);
+      if (!items.length) return;
+      addSection(group.title, items);
     } else {
       const ms = p.multiSel[group.id] || {};
       const allItems = [];
-      group.options.forEach(opt => { if (ms[opt.id] && opt.items?.length) allItems.push(...opt.items); });
+      group.options.forEach(opt => {
+        if (ms[opt.id]) allItems.push(...optionItemsForExport(opt));
+      });
       if (allItems.length) addSection(group.title, allItems);
     }
   });
+
+  if (!totRefs.length) {
+    ws.mergeCells(`A${r}:F${r}`);
+    Object.assign(ws.getCell(`A${r}`), {
+      value: 'Комплектация не выбрана. Выберите позиции в смете перед отправкой КП клиенту.',
+      fill: fill(C.notesBg), font: fnt(C.brownText, true, 10), alignment: al('center', 'middle', true)
+    });
+    ws.getRow(r).height = 24; r++;
+  }
 
   // ── Состав накладных расходов (компактно) ──
   ws.mergeCells(`A${r}:F${r}`);
@@ -2849,7 +3567,8 @@ async function exportExcel() {
   });
   ws.getRow(r).height = 38; r++;
   // ── Итоговый блок: ИТОГО ПО СМЕТЕ → НДС → ИТОГО С НДС → СКИДКА → ИТОГО СО СКИДКОЙ ──
-  if (totRefs.length) {
+  {
+    const estimateTotal = totValues.reduce((a, v) => a + v, 0);
     // 1) Итого по смете (всегда)
     ws.mergeCells(`A${r}:E${r}`);
     Object.assign(ws.getCell(`A${r}`), {
@@ -2859,7 +3578,9 @@ async function exportExcel() {
       alignment: al('left')
     });
     const gtF = ws.getCell(`F${r}`);
-    gtF.value = {formula: totRefs.join('+')};
+    gtF.value = totRefs.length
+      ? {formula: totRefs.join('+'), result: estimateTotal}
+      : 0;
     gtF.fill = fill(C.darkBrown);
     gtF.font = {name:'Arial', size:13, bold:true, color:{argb:C.gold}};
     gtF.alignment = al('right'); gtF.numFmt = numFmt;
@@ -2869,14 +3590,17 @@ async function exportExcel() {
     // 2) НДС — если включён
     const vat = getVatData();
     let baseForDiscRef = totalRowRef; // ссылка на базу для скидки (с НДС или без)
+    let baseForDiscValue = estimateTotal;
     if (vat) {
+      const vatAmount = estimateTotal * vat.rate / 100;
+      const grandAmount = estimateTotal + vatAmount;
       ws.mergeCells(`A${r}:E${r}`);
       Object.assign(ws.getCell(`A${r}`), {
         value: `  НДС ${vat.rate}%:`,
         fill: fill('FFF5F0FA'), font: fnt('FF5A3D7A', true, 10), alignment: al('left')
       });
       const vatF = ws.getCell(`F${r}`);
-      vatF.value = {formula: `${totalRowRef}*${vat.rate}/100`};
+      vatF.value = {formula: `${totalRowRef}*${vat.rate}/100`, result: vatAmount};
       vatF.fill = fill('FFF5F0FA'); vatF.font = fnt('FF5A3D7A', true, 10);
       vatF.alignment = al('right'); vatF.numFmt = numFmt;
       ws.getRow(r).height = 16; const vatRowRef = `F${r}`; r++;
@@ -2890,15 +3614,22 @@ async function exportExcel() {
         alignment: al('left')
       });
       const grandF = ws.getCell(`F${r}`);
-      grandF.value = {formula: `${totalRowRef}+${vatRowRef}`};
+      grandF.value = {formula: `${totalRowRef}+${vatRowRef}`, result: grandAmount};
       grandF.fill = fill('FFEDE3F5');
       grandF.font = {name:'Arial', size:13, bold:true, color:{argb:'FF5A3D7A'}};
       grandF.alignment = al('right'); grandF.numFmt = numFmt;
-      ws.getRow(r).height = 22.35; baseForDiscRef = `F${r}`; r++;
+      ws.getRow(r).height = 22.35; baseForDiscRef = `F${r}`; baseForDiscValue = grandAmount; r++;
     }
 
     // 4) Скидка — если задана. Считается от итога с НДС (если НДС есть), иначе от итога по смете
     if (disc && disc.val > 0) {
+      const discountAmount = Math.min(
+        disc.type === 'pct' ? baseForDiscValue * disc.val / 100 : disc.val,
+        baseForDiscValue
+      );
+      const discountFormula = disc.type === 'pct'
+        ? `MIN(${baseForDiscRef}*${disc.val}/100,${baseForDiscRef})`
+        : `MIN(${disc.val},${baseForDiscRef})`;
       const discLabel = disc.type === 'pct'
         ? `  ИНДИВИДУАЛЬНАЯ СКИДКА ${disc.val}%${disc.client ? ' для ' + disc.client : ''}:`
         : `  ИНДИВИДУАЛЬНАЯ СКИДКА${disc.client ? ' для ' + disc.client : ''}:`;
@@ -2908,9 +3639,7 @@ async function exportExcel() {
         fill: fill('FFFFF0E0'), font: fnt('FFC0392B', true, 10), alignment: al('left')
       });
       const discF = ws.getCell(`F${r}`);
-      discF.value = disc.type === 'pct'
-        ? {formula: `${baseForDiscRef}*${disc.val}/100`}
-        : disc.val;
+      discF.value = {formula: discountFormula, result: discountAmount};
       discF.fill = fill('FFFFF0E0'); discF.font = fnt('FFC0392B', true, 10);
       discF.alignment = al('right'); discF.numFmt = numFmt;
       ws.getRow(r).height = 16; const discRowRef = `F${r}`; r++;
@@ -2924,7 +3653,7 @@ async function exportExcel() {
         alignment: al('left')
       });
       const finalF = ws.getCell(`F${r}`);
-      finalF.value = {formula: `${baseForDiscRef}-${discRowRef}`};
+      finalF.value = {formula: `${baseForDiscRef}-${discRowRef}`, result: baseForDiscValue - discountAmount};
       finalF.fill = fill('FFE8F5E9');
       finalF.font = {name:'Arial', size:13, bold:true, color:{argb:'FF2D7A2D'}};
       finalF.alignment = al('right'); finalF.numFmt = numFmt;
@@ -2949,6 +3678,7 @@ async function exportExcel() {
   a.download = `КП_${p.name.replace(/\s+/g,'_')}_${new Date().toLocaleDateString('ru-RU').replace(/\./g,'-')}.xlsx`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  await quoteSavePromise;
 }
 
 async function exportTemplate() {
@@ -3135,7 +3865,7 @@ function _fillProjectSheet(ws, p) {
   ws.views = [{state:'frozen', ySplit:2}];
 
   (p.configData||[]).forEach(grp => {
-    (grp.options||[]).forEach(opt => {
+    getSelectableOptions(grp).forEach(opt => {
       if (!opt.items?.length) {
         // Вариант без детальных позиций: показываем только итоговую сумму, без формулы и без дублирования цены
         const row = ws.addRow([grp.title, opt.name, grp.type, '', '', '', '', opt.price||0]);
@@ -3466,6 +4196,7 @@ importExcel = function(input) {
 
         // Полная замена структуры
         proj.configData = newConfig;
+        applyPriceCatalogToProject(proj);
         if (newSpecs.length) proj.specs = newSpecs;
         else if (idxSpecsByProj[projName]) proj.specs = idxSpecsByProj[projName];
         // Старые выборы (selections / multiSel) указывают на удалённые ID — сбрасываем
@@ -3497,8 +4228,11 @@ importExcel = function(input) {
         + (specsCount ? `, характеристик: ${specsCount}` : '') + '. Синхронизация с сервером...';
 
       // Синхронизируем все проекты на сервер
-      syncAllProjects().then(() => {
-        statusEl.textContent = statusEl.textContent.replace('Синхронизация с сервером...', 'Сохранено на сервере.');
+      syncAllProjects().then(saved => {
+        statusEl.textContent = statusEl.textContent.replace(
+          'Синхронизация с сервером...',
+          saved ? 'Сохранено на сервере.' : 'Не сохранено на сервере: проверьте права доступа.'
+        );
       }).catch(() => {});
 
     } catch(err) {
@@ -3561,6 +4295,7 @@ function hasPermission(perm) {
   if (!currentUser) return false;
   if (currentUser.role === 'super_admin') return true;
   const p = currentUser.permissions;
+  if (currentUser.role === 'manager') return p?.[perm] === true;
   if (!p) return true; // no restrictions set = full access
   return p[perm] !== false;
 }
@@ -3653,7 +4388,13 @@ async function loadUsers() {
 
     // В форме создания: admin может создавать только менеджеров
     const adminOpt = document.querySelector('.role-admin-option');
-    if (adminOpt) adminOpt.style.display = isAdmin ? 'none' : '';
+    if (adminOpt) {
+      adminOpt.hidden = isAdmin;
+      adminOpt.disabled = isAdmin;
+      adminOpt.style.display = isAdmin ? 'none' : '';
+    }
+    const newRoleSelect = document.getElementById('newUserRole');
+    if (isAdmin && newRoleSelect?.value === 'admin') newRoleSelect.value = 'manager';
 
     // ── Users list ──
     if (visibleUsers.length === 0) {
@@ -3899,6 +4640,8 @@ async function handleFirstRunSetup(event) {
     document.getElementById('setupOverlay').style.display = 'none';
     updateAuthUI();
     await loadBackendProjects();
+    await loadPriceCatalog();
+    applyPriceCatalogToAllProjects();
     await syncAllUnsyncedProjects();
     await loadUsers();
     renderAll();
@@ -3952,13 +4695,77 @@ async function handleCreateSuperAdmin(event) {
 }
 
 function updateRoleFields() {
-  const role = document.getElementById('newUserRole').value;
+  const roleSelect = document.getElementById('newUserRole');
+  const adminOpt = roleSelect?.querySelector('.role-admin-option');
+  const isAdmin = currentUser?.role === 'admin';
+  if (adminOpt) {
+    adminOpt.hidden = isAdmin;
+    adminOpt.disabled = isAdmin;
+    adminOpt.style.display = isAdmin ? 'none' : '';
+  }
+  if (isAdmin && roleSelect?.value === 'admin') roleSelect.value = 'manager';
+  const role = roleSelect?.value;
   const adminSelectDiv = document.getElementById('adminSelectDiv');
   if (adminSelectDiv) {
     // Admin can only create managers — selector hidden, auto-assigned to self
-    const isAdmin = currentUser?.role === 'admin';
     adminSelectDiv.style.display = (!isAdmin && role === 'manager') ? 'block' : 'none';
   }
+  renderNewAdminProjects();
+}
+
+function renderNewAdminProjects() {
+  const role = document.getElementById('newUserRole')?.value;
+  const wrap = document.getElementById('newAdminProjectsDiv');
+  const list = document.getElementById('newAdminProjectsList');
+  if (!wrap || !list) return;
+
+  const shouldShow = currentUser?.role === 'super_admin' && role === 'admin';
+  wrap.style.display = shouldShow ? 'block' : 'none';
+  if (!shouldShow) {
+    list.innerHTML = '';
+    return;
+  }
+
+  const form = document.getElementById('createUserForm');
+  const submit = form?.querySelector('button[type="submit"]');
+  if (form && submit && wrap.nextElementSibling !== submit) {
+    form.insertBefore(wrap, submit);
+  }
+
+  const selectableProjects = (projects || []).filter(p => p && p.id && p._synced !== false);
+  if (!selectableProjects.length) {
+    list.innerHTML = '<div style="font-size:11px;color:#888">Нет проектов для выдачи</div>';
+    return;
+  }
+
+  list.innerHTML = selectableProjects.map(p => `
+    <label style="display:flex;align-items:center;gap:7px;font-size:11px;color:#333;cursor:pointer">
+      <input type="checkbox" data-new-admin-project value="${escapeHtml(String(p.id))}" checked style="accent-color:#5a8a5a">
+      <span>${escapeHtml(p.name || 'Проект')}</span>
+    </label>
+  `).join('');
+}
+
+function toggleNewAdminProjects(checked) {
+  document.querySelectorAll('input[data-new-admin-project]').forEach(input => {
+    input.checked = !!checked;
+  });
+}
+
+function getSelectedNewAdminProjectIds() {
+  return Array.from(document.querySelectorAll('input[data-new-admin-project]:checked'))
+    .map(input => input.value)
+    .filter(Boolean);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
 }
 
 async function handleCreateUser(event) {
@@ -3975,6 +4782,9 @@ async function handleCreateUser(event) {
       ? (currentUser.id || currentUser.userId)
       : document.getElementById('newUserAdminId').value;
   }
+  const allowedProjectIds = (role === 'admin' && currentUser?.role === 'super_admin')
+    ? getSelectedNewAdminProjectIds()
+    : undefined;
 
   if (!login || !password || !role) {
     alert('Заполните все обязательные поля (отмечены *)');
@@ -3990,9 +4800,12 @@ async function handleCreateUser(event) {
   }
 
   try {
+    const body = { name, login, email: login + '@konda.local', password, role, adminId: adminId || undefined };
+    if (allowedProjectIds !== undefined) body.allowedProjectIds = allowedProjectIds;
+
     const result = await apiRequest('/api/users', {
       method: 'POST',
-      body: JSON.stringify({ name, login, email: login + '@konda.local', password, role, adminId: adminId || undefined })
+      body: JSON.stringify(body)
     });
 
     if (!result.ok) {
@@ -4002,6 +4815,7 @@ async function handleCreateUser(event) {
 
     document.getElementById('createUserForm').reset();
     document.getElementById('adminSelectDiv').style.display = 'none';
+    renderNewAdminProjects();
     await loadUsers();
   } catch (error) {
     alert('Ошибка: ' + error.message);
@@ -4255,6 +5069,8 @@ async function init() {
   let loadedFromBackend = false;
   if (currentUser) {
     loadedFromBackend = await loadBackendProjects();
+    await loadPriceCatalog();
+    applyPriceCatalogToAllProjects();
     await syncAllUnsyncedProjects();
     startBackendPolling();
   }
@@ -4656,7 +5472,7 @@ var _lastState  = null;       // снимок состояния ДО следу
 // Перехватываем saveState — кладём в стек снимок ДО текущего изменения,
 // затем запоминаем новое состояние для следующего хода.
 var _origSaveState = saveState;
-saveState = function() {
+saveState = function(options = {}) {
   if (!_undoPaused) {
     try {
       // В UNDO кладём ПРЕДЫДУЩЕЕ состояние (то, что было до этого изменения),
@@ -4670,7 +5486,7 @@ saveState = function() {
       REDO_STACK = [];
     } catch(e) {}
   }
-  _origSaveState();
+  _origSaveState(options);
   // Запоминаем текущее (только что сохранённое) состояние —
   // оно станет «предыдущим» для следующего изменения.
   try { _lastState = JSON.stringify(projects); } catch(e) {}

@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const projectsRoutes = require('./routes/projects');
 const settingsRoutes = require('./routes/settings');
+const quoteRoutes = require('./modules/quotes/http/quoteRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +36,7 @@ async function startServer() {
   app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
   app.use('/api/projects', projectsRoutes);
+  app.use('/api/quotes', quoteRoutes);
   app.use('/api/settings', settingsRoutes);
 
   app.get('/api/health', (req, res) => {

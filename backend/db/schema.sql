@@ -102,3 +102,29 @@ CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_status ON password_reset_requests(status);
+
+-- Commercial offers / quotations created from project cards.
+CREATE TABLE IF NOT EXISTS quotes (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  project_owner_admin_id TEXT,
+  owner_admin_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  client TEXT,
+  quote_date TEXT,
+  status TEXT NOT NULL CHECK(status IN ('draft', 'final', 'archived')) DEFAULT 'draft',
+  selections TEXT,
+  multi_sel TEXT,
+  discount TEXT,
+  vat TEXT,
+  totals TEXT,
+  snapshot TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (owner_admin_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_quotes_project ON quotes(project_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_owner ON quotes(owner_admin_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_created_by ON quotes(created_by);
+CREATE INDEX IF NOT EXISTS idx_quotes_created ON quotes(created_at);

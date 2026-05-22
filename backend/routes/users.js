@@ -18,6 +18,7 @@ const { onlySuperAdmin, adminOrSuperAdmin } = require('../middleware/rbac');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { hashPassword, generateRandomPassword } = require('../utils/passwordHash');
 const { logAction, logConsole } = require('../utils/logger');
+const { createUserProjectAccessService } = require('../modules/users/application/UserProjectAccessService');
 
 /**
  * GET /api/users
@@ -155,7 +156,7 @@ router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
   const db = req.db;
   const creatorId = req.user.userId;
   const creatorRole = req.user.role;
-  const { name, login, email, password, role, adminId } = req.body;
+  const { name, login, email, password, role, adminId, allowedProjectIds } = req.body;
   const ipAddress = req.ipAddress;
 
   try {
@@ -266,21 +267,36 @@ router.post('/', adminOrSuperAdmin, asyncHandler(async (req, res) => {
       creatorId
     );
 
-    // When super_admin creates a new admin — give access to all super_admin's projects via allowed_project_ids
+    // When super_admin creates a new admin, use the selected project list.
+    // If the client omits it, keep the legacy default: all super_admin projects.
     if (role === 'admin' && creatorRole === 'super_admin') {
       const superProjects = db.prepare('SELECT id FROM projects WHERE owner_admin_id = ?').all(creatorId);
-      const projectIds = superProjects.map(p => p.id);
-      if (projectIds.length) {
-        db.prepare('UPDATE users SET allowed_project_ids = ? WHERE id = ?')
-          .run(JSON.stringify(projectIds), userId);
-      }
+      const availableIds = new Set(superProjects.map(p => p.id));
+      const projectIds = Array.isArray(allowedProjectIds)
+        ? allowedProjectIds.filter(id => availableIds.has(id))
+        : Array.from(availableIds);
+
+      db.prepare('UPDATE users SET allowed_project_ids = ? WHERE id = ?')
+        .run(JSON.stringify(projectIds), userId);
+
       logConsole('info', 'Admin given access to super_admin projects', { adminId: userId, count: projectIds.length });
     }
 
     // Auto-assign admin's projects to new manager
     if (role === 'manager' && resolvedAdminId) {
       const adminProjects = db.prepare('SELECT id FROM projects WHERE owner_admin_id = ?').all(resolvedAdminId);
-      const projectIds = adminProjects.map(p => p.id);
+      const adminRow = db.prepare('SELECT allowed_project_ids FROM users WHERE id = ? LIMIT 1').get(resolvedAdminId);
+      let sharedProjectIds = [];
+      try {
+        const parsed = adminRow?.allowed_project_ids ? JSON.parse(adminRow.allowed_project_ids) : [];
+        sharedProjectIds = Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+      } catch (error) {
+        sharedProjectIds = [];
+      }
+      const requestedProjectIds = Array.from(new Set([...adminProjects.map(p => p.id), ...sharedProjectIds]));
+      const projectIds = requestedProjectIds.length
+        ? db.prepare(`SELECT id FROM projects WHERE id IN (${requestedProjectIds.map(() => '?').join(',')})`).all(...requestedProjectIds).map(p => p.id)
+        : [];
       db.prepare('UPDATE users SET allowed_project_ids = ? WHERE id = ?')
         .run(JSON.stringify(projectIds), userId);
     }
@@ -745,36 +761,18 @@ router.patch('/:id/permissions', onlySuperAdmin, asyncHandler(async (req, res) =
  * - Для admin (вызов super_admin): переназначает owner_admin_id на проектах
  */
 router.put('/:id/projects', adminOrSuperAdmin, asyncHandler(async (req, res) => {
-  const db = req.db;
-  const user = req.user;
   const targetUserId = req.params.id;
   const { projectIds } = req.body;
 
-  const targetUser = db.prepare('SELECT * FROM users WHERE id = ? LIMIT 1').get(targetUserId);
-  if (!targetUser) {
-    return res.status(404).json({ success: false, error: 'User not found', code: 'NOT_FOUND' });
-  }
-
-  if (user.role === 'admin' && targetUser.admin_id !== user.userId) {
-    return res.status(403).json({ success: false, error: 'Access denied', code: 'FORBIDDEN' });
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const newIds = Array.isArray(projectIds) ? projectIds : [];
-
-  if (targetUser.role === 'admin' && user.role === 'super_admin') {
-    // Update allowed_project_ids for admin (no ownership change — projects stay with super_admin)
-    db.prepare('UPDATE users SET allowed_project_ids = ?, updated_at = ? WHERE id = ?')
-      .run(JSON.stringify(newIds), now, targetUserId);
-    logConsole('info', 'Admin allowed projects updated', { adminId: targetUserId, count: newIds.length });
+  const service = createUserProjectAccessService(req.db);
+  const result = service.updateUserProjects(req.user, targetUserId, projectIds);
+  if (result.targetUser.role === 'admin' && req.user.role === 'super_admin') {
+    logConsole('info', 'Admin allowed projects updated', { adminId: targetUserId, count: result.projectIds.length });
   } else {
-    // For managers: update allowed_project_ids
-    db.prepare('UPDATE users SET allowed_project_ids = ?, updated_at = ? WHERE id = ?')
-      .run(JSON.stringify(newIds), now, targetUserId);
-    logConsole('info', 'Manager projects updated', { targetUserId, count: newIds.length });
+    logConsole('info', 'Manager projects updated', { targetUserId, count: result.projectIds.length });
   }
-
   return res.json({ success: true, message: 'Projects updated' });
+
 }));
 
 module.exports = router;
